@@ -1,101 +1,89 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useEffect, useState } from "react";
+import { toast, Toaster } from "react-hot-toast";
+import { isAuthenticated } from "./(auth)/api/check-auth";// Ensure the path is correct
+import { Button } from "@/components/ui/button";
+import { Navbar, NavbarBrand, NavbarContent } from "@/components/navbar";
+
+const HomePage = () => {
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const authUser = isAuthenticated();
+    setUser(authUser);
+
+    if (authUser && authUser.fullname) {
+      toast(`Hello ${authUser.fullname}!`, {
+        icon: "👏",
+        style: {
+          borderRadius: "10px",
+          background: "#333",
+          color: "#fff",
+        },
+      });
+    } else {
+      toast(
+        (t) => (
+          <span>
+            Hi there! Please <b>login</b> or <b>register</b>.
+            <button onClick={() => toast.dismiss(t.id)}>Dismiss</button>
+          </span>
+        ),
+        {
+          style: {
+            borderRadius: "10px",
+            background: "#333",
+            color: "#fff",
+          },
+        }
+      );
+    }
+  }, []);
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
+    <div>
+      <Toaster position="top-right" reverseOrder={false} />
+      <Navbar>
+        <NavbarBrand>QuizScan</NavbarBrand>
+        <NavbarContent>
+          {user ? (
+            <span>Welcome, {user.fullname}!</span>
+          ) : (
+            <>
+              <Button href="/login">Login</Button>
+              <Button href="/register">Register</Button>
+            </>
+          )}
+        </NavbarContent>
+      </Navbar>
+      <main>
+        <section className="hero">
+          <h1>Welcome to QuizScan</h1>
+          <p>Your ultimate solution for creating and scanning quizzes.</p>
+          <Button href="/about">Learn More</Button>
+        </section>
+        <section className="features">
+          <h2>Features</h2>
+          <ul>
+            <li>Create custom quizzes easily.</li>
+            <li>Scan and grade quizzes automatically.</li>
+            <li>Generate detailed reports and analytics.</li>
+          </ul>
+        </section>
       </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      <style jsx>{`
+        .hero {
+          text-align: center;
+          padding: 2rem;
+          background: #f5f5f5;
+        }
+        .features {
+          padding: 2rem;
+        }
+      `}</style>
     </div>
   );
-}
+};
+
+export default HomePage;

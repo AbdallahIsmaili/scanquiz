@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { toast, Toaster } from "react-hot-toast";
-import { isAuthenticated } from "./(auth)/api/check-auth";// Ensure the path is correct
+import { isAuthenticated } from "./(auth)/api/check-auth"; // Ensure the path is correct
 import { Button } from "@/components/ui/button";
 import { Navbar, NavbarBrand, NavbarContent } from "@/components/navbar";
+import Link from "next/link";
 
 const HomePage = () => {
   const [user, setUser] = useState(null);
@@ -48,7 +49,12 @@ const HomePage = () => {
         <NavbarBrand>QuizScan</NavbarBrand>
         <NavbarContent>
           {user ? (
-            <span>Welcome, {user.fullname}!</span>
+            <>
+              <span>Welcome, {user.fullname}!</span>
+              <Link href="/create-qcm">
+                <Button>Créer un Quiz</Button>
+              </Link>
+            </>
           ) : (
             <>
               <Button href="/login">Login</Button>

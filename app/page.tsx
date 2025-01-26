@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { toast, Toaster } from "react-hot-toast";
-import { isAuthenticated } from "./(auth)/api/check-auth";// Ensure the path is correct
+import { isAuthenticated } from "./(auth)/api/check-auth"; // Ensure the path is correct
 import { Button } from "@/components/ui/button";
-import { Navbar, NavbarBrand, NavbarContent } from "@/components/navbar";
+import DynamicIslandNavbar from "@/components/dynamicIslandNavbar";
 
 const HomePage = () => {
   const [user, setUser] = useState(null);
@@ -14,14 +14,21 @@ const HomePage = () => {
     setUser(authUser);
 
     if (authUser && authUser.fullname) {
-      toast(`Hello ${authUser.fullname}!`, {
-        icon: "👏",
-        style: {
-          borderRadius: "10px",
-          background: "#333",
-          color: "#fff",
-        },
-      });
+      // Check if the toast has already been shown
+      const toastShown = localStorage.getItem("toastShown");
+
+      if (!toastShown) {
+        toast(`Hello ${authUser.fullname}!`, {
+          icon: "👏",
+          style: {
+            borderRadius: "10px",
+            background: "#333",
+            color: "#fff",
+          },
+        });
+        // Set the toastShown flag in local storage
+        localStorage.setItem("toastShown", "true");
+      }
     } else {
       toast(
         (t) => (
@@ -44,21 +51,10 @@ const HomePage = () => {
   return (
     <div>
       <Toaster position="top-right" reverseOrder={false} />
-      <Navbar>
-        <NavbarBrand>QuizScan</NavbarBrand>
-        <NavbarContent>
-          {user ? (
-            <span>Welcome, {user.fullname}!</span>
-          ) : (
-            <>
-              <Button href="/login">Login</Button>
-              <Button href="/register">Register</Button>
-            </>
-          )}
-        </NavbarContent>
-      </Navbar>
-      <main>
-        <section className="hero">
+
+      <DynamicIslandNavbar user={user} />
+      <main className="h-screen">
+        <section className="hero mt-16">
           <h1>Welcome to QuizScan</h1>
           <p>Your ultimate solution for creating and scanning quizzes.</p>
           <Button href="/about">Learn More</Button>
@@ -76,7 +72,7 @@ const HomePage = () => {
         .hero {
           text-align: center;
           padding: 2rem;
-          background: #f5f5f5;
+          background: #fff;
         }
         .features {
           padding: 2rem;

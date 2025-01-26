@@ -2,8 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  font-family: Arial, Helvetica, sans-serif;
+@font-face {
+    font-family: 'Helvetica';
+    src: url('/fonts/helvetica/helvetica.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+
+.btn {
+  @apply inline-block px-4 py-2 bg-indigo-600 text-white font-medium rounded-md hover:bg-indigo-700 transition duration-200;
+}
+
+.fixed {
+  transition: all 0.3s ease-in-out;
+}
+
+
+body, * {
+  font-family: 'Helvetica', Arial, sans-serif;
 }
 
 @layer base {

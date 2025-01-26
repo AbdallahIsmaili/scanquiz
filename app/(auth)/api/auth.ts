@@ -4,12 +4,12 @@ const userApi = axios.create({
   baseURL: "http://localhost:3001",
 });
 
-// userApi.interceptors.request.use((config) => {
-//   const token = localStorage.getItem("token");
-//   if (token) {
-//     config.headers.Authorization = `Bearer ${token}`;
-//   }
-//   return config;
-// });
+export const logout = () => {
+  // Remove the token from local storage
+  localStorage.removeItem("token");
+  // Redirect to the login page
+  window.location.href = "/";
+};
+
 
 export default userApi;

@@ -17,6 +17,7 @@ import {
   AlertDialogDescription,
 } from "@/components/ui/alert-dialog";
 import { toast } from "react-hot-toast";
+import { jsPDF } from "jspdf";
 
 const CreateQuizPage: React.FC = () => {
   const [title, setTitle] = useState<string>("");
@@ -25,14 +26,16 @@ const CreateQuizPage: React.FC = () => {
   const [isAlertDialogOpen, setIsAlertDialogOpen] = useState(false);
   const [numChoices, setNumChoices] = useState(0);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isConfirmationDialogOpen, setIsConfirmationDialogOpen] = useState(false);
+  const [isConfirmationDialogOpen, setIsConfirmationDialogOpen] =
+    useState(false);
+  const [isQuizSubmitted, setIsQuizSubmitted] = useState(false);
 
-  const handleSubmitQuiz = () => {
+  const handleSubmitQuiz = (e: React.FormEvent) => {
+    e.preventDefault(); // Empêche le rechargement de la page
     if (validateQuiz()) {
       setIsConfirmationDialogOpen(true);
     }
   };
-
 
   const addQuestion = (type: string) => {
     setQuestionType(type);
@@ -129,8 +132,6 @@ const CreateQuizPage: React.FC = () => {
     return true;
   };
 
-
-
   const isDuplicateQuestion = (newQuestion, index) => {
     return questions.some(
       (question, questionIndex) =>
@@ -139,7 +140,6 @@ const CreateQuizPage: React.FC = () => {
           newQuestion.text.trim().toLowerCase()
     );
   };
-
 
   const handleConfirmSubmit = async () => {
     const token = localStorage.getItem("token");
@@ -162,10 +162,9 @@ const CreateQuizPage: React.FC = () => {
     });
 
     if (response.ok) {
-      setTitle("");
-      setQuestions([]);
       setIsDialogOpen(true);
       toast.success("Quiz saved successfully!");
+      setIsQuizSubmitted(true); // Active le téléchargement du PDF
     } else {
       const errorMessage = await response.text();
       console.error("Error response:", errorMessage);
@@ -174,8 +173,47 @@ const CreateQuizPage: React.FC = () => {
     setIsConfirmationDialogOpen(false);
   };
 
+  const generatePDF = () => {
+    const doc = new jsPDF();
 
+    // Title
+    doc.setFontSize(18);
+    doc.text(title, 105, 20, { align: "center" });
+    //name
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bolditalic");
+    doc.text("Student Name: ______________________", 20, 40);
 
+    //questions
+    let yOffset = 60;
+    questions.forEach((question, index) => {
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Q${index + 1}: ${question.text}`, 20, yOffset);
+      yOffset += 10;
+
+      if (question.type === "multiple-choice") {
+        question.choices.forEach((choice: any, choiceIndex: number) => {
+          doc.text(`   ${choiceIndex + 1}. ${choice.text}`, 30, yOffset);
+          yOffset += 6;
+        });
+      } else if (question.type === "typing-box") {
+        doc.text(
+          "   Answer: _____________________________________________________________",
+          30,
+          yOffset
+        );
+        yOffset += 12;
+      }
+      yOffset += 5;
+    });
+
+    // Save the PDF
+    doc.save(`${title}.pdf`);
+    setTitle("");
+    setQuestions([]);
+    setIsQuizSubmitted(false);
+  };
 
   return (
     <ClientLayout>
@@ -334,22 +372,42 @@ const CreateQuizPage: React.FC = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="col-span-1">
             <CardHeader>
-              <TypographyH3 className="text-center">{title}</TypographyH3>
+              <div className="text-center">
+                <TypographyH3>{title}</TypographyH3>
+              </div>
             </CardHeader>
             <CardContent>
-              {questions.map((question, index) => (
-                <div key={index}>
-                  <p>
-                    Q{index + 1}: {question.text}
-                  </p>
-                </div>
-              ))}
-              <Button variant="outline" onClick={handleSubmitQuiz}>
-                Submit Quiz
-              </Button>
-
+              {!title || questions.length === 0 ? (
+                <p className="text-center text-gray-500">
+                  {title
+                    ? "No questions available. Please add some questions."
+                    : "Please enter a quiz title."}
+                </p>
+              ) : (
+                questions.map((question, index) => (
+                  <div key={index}>
+                    <p>
+                      Q{index + 1}: {question.text}
+                    </p>
+                  </div>
+                ))
+              )}
+              <br></br>
+              <div className=" mt-4 justify-center  ">
+                <Button variant="outline" onClick={handleSubmitQuiz}>
+                  Submit Quiz
+                </Button>
+                <span>&nbsp;</span>
+                <Button
+                  variant="outline"
+                  onClick={generatePDF}
+                  disabled={!isQuizSubmitted}
+                >
+                  Download as PDF
+                </Button>
+              </div>
               <AlertDialog
                 open={isConfirmationDialogOpen}
                 onOpenChange={setIsConfirmationDialogOpen}

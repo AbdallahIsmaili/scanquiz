@@ -28,7 +28,9 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
-} from "@/components/ui/sidebar"
+} from "@/components/ui/sidebar";
+import { logout } from "@/app/(auth)/api/auth";
+import { Toaster, toast } from "react-hot-toast";
 
 export function NavUser({
   user,
@@ -40,6 +42,11 @@ export function NavUser({
   }
 }) {
   const { isMobile } = useSidebar()
+
+ const handleLogout = () => {
+   logout();
+   toast.success("You have successfully logged out.");
+ };
 
   return (
     <SidebarMenu>
@@ -102,7 +109,7 @@ export function NavUser({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={handleLogout}>
               <LogOut />
               Log out
             </DropdownMenuItem>
@@ -110,5 +117,5 @@ export function NavUser({
         </DropdownMenu>
       </SidebarMenuItem>
     </SidebarMenu>
-  )
+  );
 }

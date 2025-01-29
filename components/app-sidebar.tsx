@@ -53,17 +53,21 @@ const data = {
   navMain: [
     {
       title: "Playground",
-      url: "#",
+      url: "/dashboard",
       icon: SquareTerminal,
       isActive: true,
       items: [
         {
-          title: "History",
-          url: "#",
+          title: "Home",
+          url: "/",
         },
         {
-          title: "Starred",
-          url: "#",
+          title: "Dashboard",
+          url: "/dashboard",
+        },
+        {
+          title: "Corrections",
+          url: "/dashboard/correction",
         },
         {
           title: "Settings",
@@ -154,7 +158,7 @@ const data = {
       icon: Map,
     },
   ],
-}
+};
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (

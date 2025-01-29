@@ -16,7 +16,7 @@ export default function Forbidden() {
       <AlertDialog>
         <AlertDialogTrigger asChild>
           <button className="text-red-600 font-semibold text-lg">
-            Access Denied
+            Access Denied! click here to return back.
           </button>
         </AlertDialogTrigger>
 

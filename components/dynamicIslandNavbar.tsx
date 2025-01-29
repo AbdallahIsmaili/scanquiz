@@ -196,7 +196,7 @@ const DynamicIslandNavbar = ({ user }) => {
                         variant="link"
                         className="hover:text-gray-700 transition ease-in-out duration-300"
                       >
-                        Dashboard
+                        <Link href="/dashboard">Dashboard</Link>
                       </Button>
                     </li>
 

@@ -1,6 +1,10 @@
 "use client";
 
 import { FC, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { jwtDecode } from "jwt-decode";
+import { logout } from "../(auth)/api/auth";
+import { forbidden } from "next/navigation";
 import {
   Select,
   SelectContent,
@@ -71,15 +75,24 @@ interface Quiz {
   user_id: number;
 }
 
+interface Choice {
+  id: number;
+  question_id: number;
+  choice_text: string;
+  is_correct: boolean;
+}
+
 interface Question {
   id: number;
   quiz_id: number;
   question_text: string;
   question_type: string;
   box_size: string | null;
+  choices: Choice[];
 }
 
 const DashboardPage: FC = () => {
+  const router = useRouter();
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [selectedQuiz, setSelectedQuiz] = useState<string | null>(null);
@@ -112,7 +125,11 @@ const DashboardPage: FC = () => {
       .catch((err) => setError(err.message));
   }, []);
 
-  const fetchQuizData = async (url, setData, setError) => {
+  const fetchQuizData = async (
+    url: string,
+    setData: (data: any) => void,
+    setError: (error: string) => void
+  ) => {
     try {
       const res = await fetch(url, {
         headers: {
@@ -126,9 +143,14 @@ const DashboardPage: FC = () => {
 
       const data = await res.json();
       setData(data);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Error fetching data:", err);
-      setError(err.message);
+
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("An unknown error occurred");
+      }
     }
   };
 
@@ -151,7 +173,7 @@ const DashboardPage: FC = () => {
     setSelectedQuiz(value);
   };
 
-  const handleTextUpdate = (newText) => {
+  const handleTextUpdate = (newText: string) => {
     setQuestionText(newText);
   };
 
@@ -178,7 +200,7 @@ const DashboardPage: FC = () => {
         })
         .then(() => {
           setQuizzes((prevQuizzes) =>
-            prevQuizzes.filter((q) => q.id !== selectedQuiz)
+            prevQuizzes.filter((q) => q.id !== Number(selectedQuiz))
           );
           setIsDeleteQuizOpen(false); // Hide the delete confirmation modal
           isDeleting = false; // Reset the flag
@@ -236,8 +258,6 @@ const DashboardPage: FC = () => {
         }
       });
   };
-
-
 
   const columns: ColumnDef<Question>[] = [
     {
@@ -369,6 +389,11 @@ const DashboardPage: FC = () => {
         };
 
         const handleSave = () => {
+          if (!questionDetails) {
+            toast.error("Question details are missing.");
+            return;
+          }
+
           // Check if there's a duplicate question text in the same quiz
           const duplicateQuestion = questions.find(
             (q) =>
@@ -442,19 +467,21 @@ const DashboardPage: FC = () => {
             if (!prev) return prev;
 
             if (value === "short-answer") {
-              // Save current choices before switching to short-answer
               return {
                 ...prev,
                 question_type: value,
-                savedChoices: prev.choices || [], // Temporarily store choices
-                choices: [], // Clear choices for short-answer
+                savedChoices:
+                  (prev as Question & { savedChoices?: Choice[] }).choices ||
+                  [], // Store choices safely
+                choices: [], // Clear choices
               };
             } else if (value === "multiple-choice") {
-              // Restore saved choices when switching back to multiple-choice
               return {
                 ...prev,
                 question_type: value,
-                choices: prev.savedChoices || [], // Restore saved choices
+                choices:
+                  (prev as Question & { savedChoices?: Choice[] })
+                    .savedChoices || [], // Restore saved choices
                 savedChoices: [], // Clear temporary storage
               };
             }
@@ -608,7 +635,10 @@ const DashboardPage: FC = () => {
                                             ...prev,
                                             choices: prev.choices.map((c, i) =>
                                               i === index
-                                                ? { ...c, is_correct: e }
+                                                ? {
+                                                    ...c,
+                                                    is_correct: Boolean(e),
+                                                  }
                                                 : c
                                             ),
                                           }
@@ -617,6 +647,7 @@ const DashboardPage: FC = () => {
                                   }
                                   aria-label="Correct answer"
                                 />
+
                                 <Button
                                   variant="destructive"
                                   onClick={() =>
@@ -646,6 +677,8 @@ const DashboardPage: FC = () => {
                                         choices: [
                                           ...prev.choices,
                                           {
+                                            id: Date.now(), // Use a unique id (e.g., timestamp)
+                                            question_id: prev.id, // Assuming you have `id` in the `prev` state
                                             choice_text: "",
                                             is_correct: false,
                                           },
@@ -712,6 +745,30 @@ const DashboardPage: FC = () => {
     },
   });
 
+  if (typeof window !== "undefined") {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        forbidden();
+      } else {
+        try {
+          const decoded: any = jwtDecode(token);
+          if (!decoded.exp) {
+            forbidden()
+          } else {
+            const currentTime = Date.now() / 1000;
+            if (decoded.exp < currentTime) {
+              logout();
+              forbidden()
+            }
+          }
+        } catch (err) {
+          console.error("Error decoding token:", err);
+          logout();
+          forbidden()
+        }
+      }
+    }
+    
   return (
     <>
       <div className="flex justify-between items-center gap-4 mx-auto text-left my-4">

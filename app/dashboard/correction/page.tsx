@@ -122,25 +122,25 @@ const ExportationPage: FC = () => {
   };
 
   
-  const renderQuizPreview = () => {
-    if (!questions || questions.length === 0) {
-      toast.error("No questions found for the selected quiz.");
-      return;
-    }
+const renderQuizPreview = () => {
+  if (!questions || questions.length === 0) {
+    toast.error("No questions found for the selected quiz.");
+    return;
+  }
 
-    const quizContainer = document.getElementById("quiz-preview");
-    quizContainer.innerHTML = `
-    <div class="max-w-3xl mx-auto bg-white p-8 shadow-md rounded-lg border border-gray-300">
+  const quizContainer = document.getElementById("quiz-preview");
+  quizContainer.innerHTML = `
+    <div class="max-w-3xl mx-auto bg-white  mb-6">
       <!-- Student & Exam Info -->
       <div class="border-b pb-4 mb-6">
         <div class="text-gray-700 text-center mb-4">
-          <p class="text-xl font-bold"><strong>School:</strong> ${schoolName}</p>
+          <p class="text-xl font-bold">${schoolName}</p>
           <p class="text-lg"><strong>Professor:</strong> ${profName}</p>
           <p class="text-lg"><strong>Branch/Field of Study:</strong> ${branch}</p>
         </div>
 
         <h2 class="mt-4 text-xl font-semibold text-gray-700 text-center">Student Information</h2>
-        <div class="border border-gray-300 rounded-md grid grid-cols-2 gap-4 text-gray-600 p-4 mt-2">
+        <div class="border-2 border-black rounded-sm grid grid-cols-2 gap-4 text-gray-600 p-4 mt-2">
           <p><strong>Family Name:</strong> <span class="border-b border-gray-400 w-full inline-block"></span></p>
           <p><strong>Personal Name:</strong> <span class="border-b border-gray-400 w-full inline-block"></span></p>
           <p><strong>Class:</strong> <span class="border-b border-gray-400 w-full inline-block"></span></p>
@@ -151,20 +151,18 @@ const ExportationPage: FC = () => {
       </div>
 
       <!-- General Information (Exam Rules) -->
-      <div class="h-[500px] border border-gray-300 rounded-md bg-gray-50 p-6 mt-6">
+      <div class="h-[500px]  rounded-md bg-gray-50 p-6 mt-6">
         <h2 class="text-lg font-semibold text-gray-800">General Information & Exam Rules</h2>
         <p class="mt-2 text-gray-700">${generalInfo || "No rules provided."}</p>
       </div>
-
     </div>
     
-    <div class="max-w-3xl mx-auto bg-white p-8 shadow-md rounded-lg border border-gray-300 mt-4">
+    <div class="max-w-3xl mx-auto bg-white p-8 shadow-md rounded-lg  mt-4 mb-6">
       <!-- Page Break -->
       <div style="page-break-before: always;"></div>
 
       <!-- Quiz Title -->
       <h1 class="text-3xl font-bold text-center text-black mt-8">${quizTitle}</h1>
-
 
       <!-- Questions Section -->
       <div class="mt-6 space-y-6">
@@ -206,50 +204,135 @@ const ExportationPage: FC = () => {
         <p><strong>End of Quiz</strong></p>
       </div>
     </div>
+    
+    <div class="max-w-3xl mx-auto bg-white p-8 shadow-md rounded-lg mt-4 mb-6" style="page-break-before: always;">
+
+      <!-- Page Break -->
+      <div style="page-break-before: always;"></div>
+
+      <!-- Student & Exam Info -->
+      <div class="border-t mt-8 pt-4">
+        <h2 class="text-xl font-semibold text-gray-700 text-center">Student & Exam Information</h2>
+        <p class="text-center"><strong>School:</strong> ${schoolName}</p>
+        <p class="text-center"><strong>Professor:</strong> ${profName}</p>
+        <p class="text-center"><strong>Branch/Field of Study:</strong> ${branch}</p>
+        <p class="text-center"><strong>Student Name:</strong> ____________________</p>
+        <p class="text-center"><strong>CIN:</strong> ____________________</p>
+      </div>
+
+      <!-- Answers Section -->
+      <h2 class="text-2xl font-bold text-center text-black mt-8">Answer Sheet</h2>
+      <div class="mt-6">
+        <table class="table-auto w-full text-left border-collapse text-sm">
+          <thead>
+            <tr class="bg-gray-200">
+              <th class="px-2 py-1 border">Question</th>
+              <th class="px-2 py-1 border">A</th>
+              <th class="px-2 py-1 border">B</th>
+              <th class="px-2 py-1 border">C</th>
+              <th class="px-2 py-1 border">D</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${questions
+              .map(
+                (question, index) => `
+                  <tr>
+                    <td class="px-2 py-1 border">Q${index + 1}</td>
+                    ${
+                      question.question_type === "short-answer"
+                        ? `<td colspan="4" class="px-2 py-1 border"></td>`
+                        : Array(4)
+                            .fill("")
+                            .map((_, i) => `<td class="px-2 py-1 border"></td>`)
+                            .join("")
+                    }
+                  </tr>
+                `
+              )
+              .join("")}
+          </tbody>
+        </table>
+      </div>
+    </div>
   `;
+};
+
+const exportQuizToPDF = () => {
+  const quizContainer = document.getElementById("quiz-preview");
+
+  if (!quizContainer.innerHTML.trim()) {
+    toast.error("Please preview the quiz before exporting.");
+    return;
+  }
+
+  // Use more precise page breaks for each section
+  const options = {
+    pagesplit: true,
   };
 
-  const exportQuizToPDF = () => {
-    const quizContainer = document.getElementById("quiz-preview");
+  html2canvas(quizContainer, { scale: 2 })
+    .then((canvas) => {
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+      const imgWidth = 190;
+      const pageHeight = 297;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-    if (!quizContainer.innerHTML.trim()) {
-      toast.error("Please preview the quiz before exporting.");
-      return;
-    }
+      let yPosition = 10;
+      let heightLeft = imgHeight;
 
-    html2canvas(quizContainer, { scale: 2 })
-      .then((canvas) => {
-        const imgData = canvas.toDataURL("image/png");
-        const pdf = new jsPDF("p", "mm", "a4");
-        const imgWidth = 190;
-        const pageHeight = 297;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      // Split Content into Pages with Page Break
+      pdf.addImage(
+        imgData,
+        "PNG",
+        10,
+        yPosition,
+        imgWidth,
+        imgHeight,
+        "",
+        "FAST",
+        options
+      );
+      heightLeft -= pageHeight - 20;
 
-        // Split Content into Pages with Page Break
-        pdf.addImage(imgData, "PNG", 10, 10, imgWidth, imgHeight);
+      while (heightLeft > 0) {
+        yPosition -= pageHeight - 20;
         pdf.addPage();
-        pdf.addImage(imgData, "PNG", 10, -pageHeight + 10, imgWidth, imgHeight);
+        pdf.addImage(
+          imgData,
+          "PNG",
+          10,
+          yPosition,
+          imgWidth,
+          imgHeight,
+          "",
+          "FAST",
+          options
+        );
+        heightLeft -= pageHeight - 20;
+      }
 
-        pdf.save(`${quizTitle.replace(/\s+/g, "_")}_Exam.pdf`);
-      })
-      .catch((err) => {
-        console.error("Error exporting quiz:", err);
-        toast.error("Failed to export the quiz.");
-      });
-  };
+      pdf.save(`${quizTitle.replace(/\s+/g, "_")}_Exam.pdf`);
+    })
+    .catch((err) => {
+      console.error("Error exporting quiz:", err);
+      toast.error("Failed to export the quiz.");
+    });
+};
 
-  const handlePreviewQuiz = () => {
-    renderQuizPreview();
-  };
+const handlePreviewQuiz = () => {
+  renderQuizPreview();
+};
 
-  const handleExportQuiz = () => {
-    renderQuizPreview(); // Ensure the quiz is rendered
-    exportQuizToPDF(); // Export the rendered quiz to PDF
-  };
+const handleExportQuiz = () => {
+  renderQuizPreview();
+  exportQuizToPDF();
+};
 
 
 
-// Function to format text
+  // Function to format text
   const formatText = (command: string, value?: string) => {
     document.execCommand(command, false, value);
   };
@@ -313,7 +396,10 @@ const ExportationPage: FC = () => {
         )}
       </div>
 
-      <div id="quiz-preview" className="p-4 border rounded shadow-lg my-4"></div>
+      <div
+        id="quiz-preview"
+        className="p-4 rounded shadow-lg my-4"
+      ></div>
 
       <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <AlertDialogContent className="w-3/4 h-3/4">
@@ -324,9 +410,15 @@ const ExportationPage: FC = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="flex mb-4">
-            <button onClick={() => formatText('bold')} className="mr-2">Bold</button>
-            <button onClick={() => formatText('underline')} className="mr-2">Underline</button>
-            <button onClick={() => formatText('italic')} className="mr-2">Italic</button>
+            <button onClick={() => formatText("bold")} className="mr-2">
+              Bold
+            </button>
+            <button onClick={() => formatText("underline")} className="mr-2">
+              Underline
+            </button>
+            <button onClick={() => formatText("italic")} className="mr-2">
+              Italic
+            </button>
           </div>
           <div
             className="w-full h-64 border border-gray-300 rounded-lg p-2 overflow-y-auto"
@@ -350,7 +442,6 @@ const ExportationPage: FC = () => {
       </AlertDialog>
     </>
   );
-
 };
 
 export default ExportationPage;

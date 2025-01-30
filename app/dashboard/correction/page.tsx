@@ -10,10 +10,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogPortal,
+  AlertDialogOverlay,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import toast, { Toaster } from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 import { jsPDF } from "jspdf";
+import html2canvas from "html2canvas";
 
 interface Quiz {
   id: number;
@@ -37,7 +51,7 @@ interface Question {
   choices: Choice[];
 }
 
-const DashboardPage: FC = () => {
+const ExportationPage: FC = () => {
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [selectedQuiz, setSelectedQuiz] = useState<string | null>(null);
@@ -46,6 +60,10 @@ const DashboardPage: FC = () => {
   const [profName, setProfName] = useState("");
   const [quizTitle, setQuizTitle] = useState("");
   const [branch, setBranch] = useState("");
+  const [generalInfo, setGeneralInfo] = useState("");
+
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editorContent, setEditorContent] = useState("");
 
   useEffect(() => {
     fetch("http://localhost:3001/api/quizzes", {
@@ -103,7 +121,8 @@ const DashboardPage: FC = () => {
     setSelectedQuiz(value);
   };
 
-  const handlePreviewQuiz = () => {
+  
+  const renderQuizPreview = () => {
     if (!questions || questions.length === 0) {
       toast.error("No questions found for the selected quiz.");
       return;
@@ -111,89 +130,129 @@ const DashboardPage: FC = () => {
 
     const quizContainer = document.getElementById("quiz-preview");
     quizContainer.innerHTML = `
-    <style>
-      .quiz-container {
-        padding: 20px;
-        font-size: 12px;
-      }
-      .student-info {
-        border: 1px solid #000;
-        padding: 10px;
-        margin-bottom: 20px;
-      }
-      .quiz-title {
-        text-align: center;
-        font-weight: bold;
-        font-size: 16px;
-        margin: 20px 0;
-      }
-      .short-answer-box {
-        border: 1px solid #000;
-        margin-top: 10px;
-      }
-    </style>
-    <div class="quiz-container">
-      <div class="student-info">
-        <p><strong>Family Name of the Student:</strong> ______________________</p>
-        <p><strong>Personal Name:</strong> ______________________</p>
-        <p><strong>Class:</strong> ______________________</p>
-        <p><strong>Title of the Subject:</strong> ______________________</p>
-        <p><strong>CIN:</strong> ______________________</p>
-        <p><strong>Note:</strong> ______________________</p>
-      </div>
-      <div class="quiz-title">${quizTitle}</div>
-      <p><strong>School:</strong> ${schoolName}</p>
-      <p><strong>Professor:</strong> ${profName}</p>
-      <p><strong>Branch/Field of Study:</strong> ${branch}</p>
-      ${questions
-        .map(
-          (question, index) => `
-        <div>
-          <p><strong>Q${index + 1}:</strong> ${question.question_text}</p>
-          ${
-            question.question_type === "short-answer"
-              ? `
-            <div class="short-answer-box" style="height: ${
-              question.box_size * 20
-            }px;"></div>
-          `
-              : `
-            ${
-              question.choices
-                ? question.choices
-                    .map(
-                      (choice) => `
-                  <p>${choice.choice_text}</p>
-                `
-                    )
-                    .join("")
-                : "<p>No choices available</p>"
-            }
-          `
-          }
+    <div class="max-w-3xl mx-auto bg-white p-8 shadow-md rounded-lg border border-gray-300">
+      <!-- Student & Exam Info -->
+      <div class="border-b pb-4 mb-6">
+        <div class="text-gray-700 text-center mb-4">
+          <p class="text-xl font-bold"><strong>School:</strong> ${schoolName}</p>
+          <p class="text-lg"><strong>Professor:</strong> ${profName}</p>
+          <p class="text-lg"><strong>Branch/Field of Study:</strong> ${branch}</p>
         </div>
-      `
-        )
-        .join("")}
+
+        <h2 class="mt-4 text-xl font-semibold text-gray-700 text-center">Student Information</h2>
+        <div class="border border-gray-300 rounded-md grid grid-cols-2 gap-4 text-gray-600 p-4 mt-2">
+          <p><strong>Family Name:</strong> <span class="border-b border-gray-400 w-full inline-block"></span></p>
+          <p><strong>Personal Name:</strong> <span class="border-b border-gray-400 w-full inline-block"></span></p>
+          <p><strong>Class:</strong> <span class="border-b border-gray-400 w-full inline-block"></span></p>
+          <p><strong>Title of the Subject:</strong> <span class="border-b border-gray-400 w-full inline-block"></span></p>
+          <p><strong>CIN:</strong> <span class="border-b border-gray-400 w-full inline-block"></span></p>
+        </div>
+        <p class="mt-4"><strong>Note:</strong> <span class="border-b border-gray-400 w-full inline-block"></span></p>
+      </div>
+
+      <!-- General Information (Exam Rules) -->
+      <div class="h-[500px] border border-gray-300 rounded-md bg-gray-50 p-6 mt-6">
+        <h2 class="text-lg font-semibold text-gray-800">General Information & Exam Rules</h2>
+        <p class="mt-2 text-gray-700">${generalInfo || "No rules provided."}</p>
+      </div>
+
+    </div>
+    
+    <div class="max-w-3xl mx-auto bg-white p-8 shadow-md rounded-lg border border-gray-300 mt-4">
+      <!-- Page Break -->
+      <div style="page-break-before: always;"></div>
+
+      <!-- Quiz Title -->
+      <h1 class="text-3xl font-bold text-center text-black mt-8">${quizTitle}</h1>
+
+
+      <!-- Questions Section -->
+      <div class="mt-6 space-y-6">
+        ${questions
+          .map(
+            (question, index) => `
+              <div>
+                <p class="font-semibold text-gray-800"><span class="text-black">Q${
+                  index + 1
+                }:</span> ${question.question_text}</p>
+                ${
+                  question.question_type === "short-answer"
+                    ? `<div class="mt-3 h-24 border border-gray-400 rounded-md"></div>`
+                    : `<div class="mt-3 space-y-2">
+                        ${
+                          question.choices?.length > 0
+                            ? question.choices
+                                .map(
+                                  (choice, i) => `
+                                  <div class="flex items-center">
+                                    <label class="ml-2 text-gray-700">${String.fromCharCode(
+                                      65 + i
+                                    )}. ${choice.choice_text}</label>
+                                  </div>`
+                                )
+                                .join("")
+                            : `<p class="text-red-500 italic">No choices available</p>`
+                        }
+                      </div>`
+                }
+              </div>
+            `
+          )
+          .join("")}
+      </div>
+
+      <!-- Footer -->
+      <div class="mt-8 text-center text-gray-600 text-sm">
+        <p><strong>End of Quiz</strong></p>
+      </div>
     </div>
   `;
   };
 
-  const handleExportQuiz = () => {
-    if (!questions || questions.length === 0) {
-      toast.error("No questions found for the selected quiz.");
+  const exportQuizToPDF = () => {
+    const quizContainer = document.getElementById("quiz-preview");
+
+    if (!quizContainer.innerHTML.trim()) {
+      toast.error("Please preview the quiz before exporting.");
       return;
     }
 
-    const quizContainer = document.getElementById("quiz-preview");
-    const pdf = new jsPDF();
-    pdf.html(quizContainer, {
-      callback: function (doc) {
-        doc.save("quiz.pdf");
-      },
-    });
+    html2canvas(quizContainer, { scale: 2 })
+      .then((canvas) => {
+        const imgData = canvas.toDataURL("image/png");
+        const pdf = new jsPDF("p", "mm", "a4");
+        const imgWidth = 190;
+        const pageHeight = 297;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+        // Split Content into Pages with Page Break
+        pdf.addImage(imgData, "PNG", 10, 10, imgWidth, imgHeight);
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", 10, -pageHeight + 10, imgWidth, imgHeight);
+
+        pdf.save(`${quizTitle.replace(/\s+/g, "_")}_Exam.pdf`);
+      })
+      .catch((err) => {
+        console.error("Error exporting quiz:", err);
+        toast.error("Failed to export the quiz.");
+      });
   };
 
+  const handlePreviewQuiz = () => {
+    renderQuizPreview();
+  };
+
+  const handleExportQuiz = () => {
+    renderQuizPreview(); // Ensure the quiz is rendered
+    exportQuizToPDF(); // Export the rendered quiz to PDF
+  };
+
+
+
+// Function to format text
+  const formatText = (command: string, value?: string) => {
+    document.execCommand(command, false, value);
+  };
 
   return (
     <>
@@ -240,6 +299,10 @@ const DashboardPage: FC = () => {
               value={branch}
               onChange={(e) => setBranch(e.target.value)}
             />
+
+            <Button variant="outline" onClick={() => setIsDialogOpen(true)}>
+              Add Rules
+            </Button>
             <Button variant="secondary" onClick={handlePreviewQuiz}>
               Preview
             </Button>
@@ -250,11 +313,44 @@ const DashboardPage: FC = () => {
         )}
       </div>
 
-      <div id="quiz-preview" className="p-4 border rounded shadow-lg my-4">
-        
-      </div>
+      <div id="quiz-preview" className="p-4 border rounded shadow-lg my-4"></div>
+
+      <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <AlertDialogContent className="w-3/4 h-3/4">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Add Quiz Rules</AlertDialogTitle>
+            <AlertDialogDescription>
+              Use the editor below to add the rules for the quiz.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex mb-4">
+            <button onClick={() => formatText('bold')} className="mr-2">Bold</button>
+            <button onClick={() => formatText('underline')} className="mr-2">Underline</button>
+            <button onClick={() => formatText('italic')} className="mr-2">Italic</button>
+          </div>
+          <div
+            className="w-full h-64 border border-gray-300 rounded-lg p-2 overflow-y-auto"
+            contentEditable
+            onInput={(e) => setEditorContent(e.currentTarget.innerHTML)}
+          ></div>
+          <AlertDialogFooter>
+            <Button onClick={() => setIsDialogOpen(false)}>Close</Button>
+            <Button
+              onClick={() => {
+                handlePreviewQuiz();
+                setGeneralInfo(editorContent);
+                setIsDialogOpen(false);
+              }}
+              className="ml-2"
+            >
+              Save
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
+
 };
 
-export default DashboardPage;
+export default ExportationPage;

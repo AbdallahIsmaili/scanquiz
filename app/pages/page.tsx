@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -18,6 +18,17 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "react-hot-toast";
 import { jsPDF } from "jspdf";
+import { Trash } from "lucide-react";
+import JSZip from "jszip";
+// Ajoutez ces imports shadcn/ui supplémentaires
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const CreateQuizPage: React.FC = () => {
   const [title, setTitle] = useState<string>("");
@@ -29,7 +40,22 @@ const CreateQuizPage: React.FC = () => {
   const [isConfirmationDialogOpen, setIsConfirmationDialogOpen] =
     useState(false);
   const [isQuizSubmitted, setIsQuizSubmitted] = useState(false);
+  const [previewData, setPreviewData] = useState<{
+    quizBlob: Blob | null;
+    answerBlob: Blob | null;
+    quizUrl: string | null;
+    answerUrl: string | null;
+  }>({
+    quizBlob: null,
+    answerBlob: null,
+    quizUrl: null,
+    answerUrl: null,
+  });
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
 
+  const handleDelete = (id) => {
+    setQuestions(questions.filter((question) => question.id !== id));
+  };
   const handleSubmitQuiz = (e: React.FormEvent) => {
     e.preventDefault(); // Empêche le rechargement de la page
     if (validateQuiz()) {
@@ -172,47 +198,263 @@ const CreateQuizPage: React.FC = () => {
     }
     setIsConfirmationDialogOpen(false);
   };
+  const handlePreviewPDF = async () => {
+    try {
+      const { quizBlob, answerBlob } = await generatePDFs();
+      setPreviewData({
+        quizBlob,
+        answerBlob,
+        quizUrl: URL.createObjectURL(quizBlob),
+        answerUrl: URL.createObjectURL(answerBlob),
+      });
+      setIsPreviewModalOpen(true);
+    } catch (error) {
+      console.error("Error generating preview:", error);
+    }
+  };
 
-  const generatePDF = () => {
-    const doc = new jsPDF();
+  useEffect(() => {
+    return () => {
+      if (previewData.quizUrl) URL.revokeObjectURL(previewData.quizUrl);
+      if (previewData.answerUrl) URL.revokeObjectURL(previewData.answerUrl);
+    };
+  }, [previewData]);
 
-    // Title
-    doc.setFontSize(18);
-    doc.text(title, 105, 20, { align: "center" });
-    //name
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bolditalic");
-    doc.text("Student Name: ______________________", 20, 40);
+  const generatePDFs = async () => {
+    try {
+      const zip = new JSZip();
 
-    //questions
-    let yOffset = 60;
-    questions.forEach((question, index) => {
-      doc.setFontSize(12);
-      doc.setFont("helvetica", "normal");
-      doc.text(`Q${index + 1}: ${question.text}`, 20, yOffset);
-      yOffset += 10;
+      // Création du document principal (Quiz)
+      const quizDoc = new jsPDF();
 
-      if (question.type === "multiple-choice") {
-        question.choices.forEach((choice: any, choiceIndex: number) => {
-          doc.text(`   ${choiceIndex + 1}. ${choice.text}`, 30, yOffset);
-          yOffset += 6;
-        });
-      } else if (question.type === "typing-box") {
-        doc.text(
-          "   Answer: _____________________________________________________________",
-          30,
-          yOffset
+      // En-tête du Quiz
+      quizDoc.setFontSize(16);
+      quizDoc.setFont("helvetica", "bold");
+      quizDoc.text(title, 105, 20, { align: "center" });
+
+      // Section Informations Étudiant
+      quizDoc.setFontSize(11);
+      quizDoc.setFont("helvetica", "bold");
+      const studentFields = [
+        { label: "Nom: ______________________", x: 20, y: 40 },
+        { label: "Prénom: ____________________", x: 20, y: 48 },
+        { label: "CIN: ______________________", x: 110, y: 40 },
+        { label: "Classe: ____________________", x: 110, y: 48 },
+      ];
+
+      studentFields.forEach((field) => {
+        quizDoc.text(field.label, field.x, field.y);
+      });
+      // Ligne de séparation
+      quizDoc.setLineWidth(0.5);
+      quizDoc.line(15, 58, 195, 58);
+
+      // Configuration des questions
+      let yOffset = 65;
+      const pageWidth = 180;
+      const margin = 20;
+
+      questions.forEach((question, index) => {
+        if (yOffset > 270) {
+          quizDoc.addPage();
+          yOffset = 30;
+        }
+
+        // Gestion du préfixe "Q1:"
+        quizDoc.setFontSize(12);
+        quizDoc.setFont("helvetica", "bold");
+        const questionPrefix = `Q${index + 1}: `;
+        const prefixWidth = quizDoc.getTextWidth(questionPrefix);
+
+        // Affichage du préfixe
+        quizDoc.text(questionPrefix, margin, yOffset);
+
+        // Découpage et justification du texte
+        const availableWidth = pageWidth - prefixWidth - 5;
+        const questionLines = quizDoc.splitTextToSize(
+          question.text,
+          availableWidth
         );
-        yOffset += 12;
-      }
-      yOffset += 5;
-    });
 
-    // Save the PDF
-    doc.save(`${title}.pdf`);
-    setTitle("");
-    setQuestions([]);
-    setIsQuizSubmitted(false);
+        quizDoc.setFont("helvetica", "normal");
+        questionLines.forEach((line: string, i: number) => {
+          const xPosition = margin + prefixWidth + 2;
+          quizDoc.text(line, xPosition, yOffset + i * 5, {
+            maxWidth: availableWidth,
+            align: "justify",
+          });
+        });
+
+        yOffset += 3 * questionLines.length;
+
+        // Réponses
+        if (question.type === "multiple-choice") {
+          quizDoc.setFontSize(11);
+          question.choices.forEach((choice: any, choiceIndex: number) => {
+            const prefix = `${String.fromCharCode(65 + choiceIndex)}. `;
+            const choiceLines = quizDoc.splitTextToSize(
+              prefix + choice.text,
+              pageWidth - 20
+            );
+
+            choiceLines.forEach((line: string, i: number) => {
+              quizDoc.text(line, margin + 15, yOffset + 5 + i * 5);
+            });
+
+            yOffset += 5 + choiceLines.length * 5;
+          });
+        } else if (question.type === "typing-box") {
+          const boxSize = parseInt(question.boxSize) || 1;
+          const lineYStart = yOffset + 4;
+
+          for (let i = 0; i < boxSize; i++) {
+            quizDoc.setLineWidth(0.1);
+            quizDoc.line(
+              margin + 10,
+              lineYStart + i * 12,
+              margin + pageWidth - 10,
+              lineYStart + i * 12
+            );
+            yOffset += 12;
+          }
+        }
+
+        yOffset += 15;
+      });
+
+      // Footer
+      const pageCount = quizDoc.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        quizDoc.setPage(i);
+        quizDoc.text(`Page ${i} / ${pageCount}`, 105, 285, { align: "center" });
+      }
+
+      // Feuille de réponses améliorée
+      const answerSheet = new jsPDF();
+
+      // En-tête centré
+      answerSheet.setFontSize(16);
+      answerSheet.setFont("helvetica", "bold");
+      answerSheet.text(title, 105, 20, { align: "center" });
+      answerSheet.text("FEUILLE DE RÉPONSES", 105, 30, { align: "center" });
+
+      // Informations Étudiant
+      answerSheet.setFontSize(10);
+      answerSheet.setFont("helvetica", "bold");
+      answerSheet.text(
+        "Nom/Prénom: __________________________________   Classe: ___________   CIN: ______________",
+        20,
+        45
+      );
+      answerSheet.setLineWidth(0.5);
+      answerSheet.line(20, 50, 190, 50);
+
+      // Configuration dynamique
+      const maxChoices = questions.reduce(
+        (max, q) =>
+          q.type === "multiple-choice" ? Math.max(max, q.choices.length) : max,
+        0
+      );
+
+      const startY = 60; // Position verticale de départ du tableau
+
+      const tableConfig = {
+        colWidth: 18,
+        rowHeight: 14,
+        header: [
+          "Question",
+          ...Array.from({ length: maxChoices }, (_, i) =>
+            String.fromCharCode(65 + i)
+          ),
+        ],
+      };
+
+      // Calcul de positionnement précis
+      const totalTableWidth = tableConfig.colWidth * tableConfig.header.length;
+      const startX =
+        (answerSheet.internal.pageSize.width - totalTableWidth) / 2;
+
+      // En-têtes alignés
+      answerSheet.setFont("helvetica", "bold");
+      tableConfig.header.forEach((header, i) => {
+        const xPos = startX + i * tableConfig.colWidth;
+
+        // Alignement différent pour "Question"
+        if (i === 0) {
+          answerSheet.text(header, xPos + tableConfig.colWidth - 2, startY, {
+            align: "right", // Alignement à droite pour correspondre aux Q1, Q2
+          });
+        } else {
+          answerSheet.text(header, xPos + tableConfig.colWidth / 2, startY, {
+            align: "center", // Centrage pour les lettres
+          });
+        }
+      });
+
+      // Cases à cocher
+      questions.forEach((question, index) => {
+        if (question.type !== "multiple-choice") return;
+
+        const y = startY + (index + 1) * tableConfig.rowHeight;
+
+        // Positionnement du numéro de question
+        answerSheet.text(
+          `Q${index + 1}`,
+          startX + tableConfig.colWidth - 8, // Alignement coordonné avec l'en-tête
+          y + 4,
+          { align: "right" }
+        );
+
+        // Cases alignées sous les lettres
+        for (let i = 0; i < question.choices.length; i++) {
+          const xPos =
+            startX +
+            (i + 1) * tableConfig.colWidth + // Décalage pour la colonne Question
+            tableConfig.colWidth / 2 -
+            4;
+          answerSheet.rect(xPos, y - 1, 8, 8);
+        }
+      });
+      // Après avoir généré le tableau dans la feuille de réponses
+      const answerPageCount = answerSheet.getNumberOfPages();
+      for (let i = 1; i <= answerPageCount; i++) {
+        answerSheet.setPage(i);
+        answerSheet.text(
+          `Page ${i} / ${answerPageCount}`,
+          105,
+          285, // Position Y identique au quiz
+          { align: "center" }
+        );
+      }
+      const quizBlob = quizDoc.output("blob"); // <-- Décommenté
+      const answerBlob = answerSheet.output("blob"); // <-- Décommenté
+      return { quizBlob, answerBlob }; // Retournez les Blobs générés
+    } catch (error) {
+      toast.error("Erreur lors de la génération des PDF");
+      throw error;
+    }
+  };
+  const createAndDownloadZip = async (quizBlob: Blob, answerBlob: Blob) => {
+    try {
+      const zip = new JSZip();
+      zip.file(`${title}_Quiz.pdf`, quizBlob);
+      zip.file(`${title}_Feuille_Reponses.pdf`, answerBlob);
+
+      const content = await zip.generateAsync({ type: "blob" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(content);
+      link.download = `${title}_Quiz_Package.zip`;
+      link.click();
+
+      // Nettoyage
+      URL.revokeObjectURL(link.href);
+      setTitle("");
+      setQuestions([]);
+      setIsQuizSubmitted(false);
+    } catch (error) {
+      console.error("Error generating ZIP:", error);
+      toast.error("Erreur lors du téléchargement");
+    }
   };
 
   return (
@@ -242,14 +484,25 @@ const CreateQuizPage: React.FC = () => {
                       <hr className="my-2" />
                       <TypographyH4> {`Question ${index + 1}`} </TypographyH4>
                       <br />
-                      <Input
-                        label={`Question ${index + 1}`}
-                        placeholder={`Enter Question ${index + 1}`}
-                        value={question.text}
-                        onChange={(e) =>
-                          handleQuestionChange(index, e.target.value)
-                        }
-                      />
+                      <div className="flex items-center mt-2">
+                        <Input
+                          label={`Question ${index + 1}`}
+                          placeholder={`Enter Question ${index + 1}`}
+                          value={question.text}
+                          onChange={(e) =>
+                            handleQuestionChange(index, e.target.value)
+                          }
+                          className="flex-1"
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-red-500 bg-gray-100 hover:bg-red-100 ml-2 "
+                          onClick={() => handleDelete(question.id)}
+                        >
+                          <Trash className="w-5 h-5" />
+                        </Button>
+                      </div>
                       {question.choices.map(
                         (choice: any, choiceIndex: number) => (
                           <div
@@ -281,15 +534,25 @@ const CreateQuizPage: React.FC = () => {
                     </>
                   )}
                   {question.type === "typing-box" && (
-                    <Input
-                      label={`Question ${index + 1}`}
-                      placeholder={`Enter Question ${index + 1}`}
-                      value={question.text}
-                      onChange={(e) =>
-                        handleQuestionChange(index, e.target.value)
-                      }
-                      className="mt-2"
-                    />
+                    <div className="flex items-center mt-2">
+                      <Input
+                        label={`Question ${index + 1}`}
+                        placeholder={`Enter Question ${index + 1}`}
+                        value={question.text}
+                        onChange={(e) =>
+                          handleQuestionChange(index, e.target.value)
+                        }
+                        className="flex-1"
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-red-500 bg-gray-100 hover:bg-red-100 ml-2 "
+                        onClick={() => handleDelete(question.id)}
+                      >
+                        <Trash className="w-5 h-5" />
+                      </Button>
+                    </div>
                   )}
                 </div>
               ))}
@@ -402,7 +665,7 @@ const CreateQuizPage: React.FC = () => {
                 <span>&nbsp;</span>
                 <Button
                   variant="outline"
-                  onClick={generatePDF}
+                  onClick={handlePreviewPDF}
                   disabled={!isQuizSubmitted}
                 >
                   Download as PDF
@@ -452,6 +715,61 @@ const CreateQuizPage: React.FC = () => {
           </AlertDialogContent>
         </AlertDialog>
       </section>
+      {/*Placez ce code juste avant le dernier*/}
+      <Dialog open={isPreviewModalOpen} onOpenChange={setIsPreviewModalOpen}>
+        <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Aperçu des PDFs</DialogTitle>
+          </DialogHeader>
+
+          <Tabs defaultValue="quiz">
+            <TabsList className="grid grid-cols-2 w-1/2 mb-4">
+              <TabsTrigger value="quiz">Questionnaire</TabsTrigger>
+              <TabsTrigger value="answers">Feuille de réponses</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="quiz" className="flex-1">
+              {previewData.quizUrl && (
+                <iframe
+                  src={`${previewData.quizUrl}#view=fitH`}
+                  className="w-full h-full min-h-[500px]"
+                />
+              )}
+            </TabsContent>
+
+            <TabsContent value="answers" className="flex-1">
+              {previewData.answerUrl && (
+                <iframe
+                  src={`${previewData.answerUrl}#view=fitH`}
+                  className="w-full h-full min-h-[500px]"
+                />
+              )}
+            </TabsContent>
+          </Tabs>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsPreviewModalOpen(false)}
+            >
+              Annuler
+            </Button>
+            <Button
+              onClick={() => {
+                if (previewData.quizBlob && previewData.answerBlob) {
+                  createAndDownloadZip(
+                    previewData.quizBlob,
+                    previewData.answerBlob
+                  );
+                  setIsPreviewModalOpen(false);
+                }
+              }}
+            >
+              Télécharger
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </ClientLayout>
   );
 };

@@ -43,25 +43,6 @@ import {
 import { z } from "zod";
 import { Skeleton } from "@/components/ui/skeleton";
 
-type Choice = {
-  text: string;
-  isCorrect: boolean;
-};
-
-type QuestionBase = {
-  text: string;
-};
-
-type MultipleChoiceQuestion = QuestionBase & {
-  type: "multiple-choice";
-  choices: Choice[];
-};
-
-type TypingBoxQuestion = QuestionBase & {
-  type: "typing-box";
-  boxSize: string | number;
-};
-
 const QuizSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters").max(50),
   questions: z
@@ -77,23 +58,40 @@ const QuizSchema = z.object({
                 isCorrect: z.boolean(),
               })
             )
-            .min(2, "At least 2 choices required"),
+            .min(2, "At least 2 choices required")
+            .refine(
+              (choices) => choices.some((c) => c.isCorrect),
+              "At least one correct answer required"
+            ),
         }),
         z.object({
           type: z.literal("typing-box"),
           text: z.string().min(5, "Question text too short"),
-          boxSize: z.string(),
+          boxSize: z
+            .string()
+            .refine(
+              (val) => !isNaN(Number(val)) && Number(val) > 0,
+              "Invalid box size"
+            ),
         }),
       ])
     )
-    .min(1, "At least one question required"),
+    .min(1, "At least one question required")
+    .refine((questions) => {
+      const texts = questions.map((q) => q.text);
+      return new Set(texts).size === texts.length;
+    }, "Duplicate questions detected"),
 });
 
 type PreviewContextType = {
   generatePDFs: () => Promise<{ quizBlob: Blob; answerBlob: Blob }>;
 };
 
-const PreviewContext = createContext<PreviewContextType | null>(null);
+//const PreviewContext = createContext<PreviewContextType | null>(null);
+
+const PreviewContext = createContext<PreviewContextType>({
+  generatePDFs: () => Promise.reject("Context not initialized"),
+});
 
 const ConfirmationDialog = ({
   open,
@@ -108,11 +106,18 @@ const ConfirmationDialog = ({
         <AlertDialogTitle>{title}</AlertDialogTitle>
         <AlertDialogDescription>{description}</AlertDialogDescription>
       </AlertDialogHeader>
+
       <AlertDialogFooter>
         <Button variant="outline" onClick={() => onOpenChange(false)}>
           Cancel
         </Button>
-        <Button variant="destructive" onClick={onConfirm}>
+        <Button
+          variant="destructive"
+          onClick={() => {
+            onConfirm();
+            onOpenChange(false);
+          }}
+        >
           Confirm
         </Button>
       </AlertDialogFooter>
@@ -137,7 +142,7 @@ const QuestionActions = ({ onDelete }) => (
 const QuizForm = ({ title, questions, setTitle, setQuestions }) => {
   const [questionType, setQuestionType] = useState<string | null>(null);
   const [isAlertDialogOpen, setIsAlertDialogOpen] = useState(false);
-  const [numChoices, setNumChoices] = useState(0);
+  const [dialogInput, setDialogInput] = useState("");
 
   const handleAddQuestion = (type: string) => {
     setQuestionType(type);
@@ -148,6 +153,13 @@ const QuizForm = ({ title, questions, setTitle, setQuestions }) => {
   };
 
   const handleAddMultipleChoiceQuestion = () => {
+    // Convertir dialogInput en nombre
+    const numChoices = parseInt(dialogInput, 10);
+    if (isNaN(numChoices) || numChoices < 2 || numChoices > 5) {
+      toast.error("Please enter a number between 2 and 5");
+      setDialogInput("");
+      return;
+    }
     const newQuestion = {
       type: "multiple-choice",
       text: "",
@@ -158,16 +170,24 @@ const QuizForm = ({ title, questions, setTitle, setQuestions }) => {
     };
     setQuestions([...questions, newQuestion]);
     setIsAlertDialogOpen(false);
+    setDialogInput("");
   };
 
-  const handleAddTypingBoxQuestion = (boxSize: string) => {
+  const handleAddTypingBoxQuestion = () => {
+    const boxSize = parseInt(dialogInput, 10);
+    if (isNaN(boxSize) || boxSize < 1 || boxSize > 10) {
+      toast.error("Please enter a valid number between 1 and 10");
+      setDialogInput("");
+      return;
+    }
     const newQuestion = {
       type: "typing-box",
       text: "",
-      boxSize,
+      boxSize: boxSize.toString(),
     };
     setQuestions([...questions, newQuestion]);
     setIsAlertDialogOpen(false);
+    setDialogInput("");
   };
   const handleQuestionChange = (index: number, value: string) => {
     const newQuestions = [...questions];
@@ -216,7 +236,6 @@ const QuizForm = ({ title, questions, setTitle, setQuestions }) => {
               <QuestionActions onDelete={() => handleDeleteQuestion(index)} />
             </div>
 
-            {/* Si la question est de type "multiple-choice" */}
             {question.type === "multiple-choice" && (
               <>
                 <Input
@@ -225,7 +244,6 @@ const QuizForm = ({ title, questions, setTitle, setQuestions }) => {
                   onChange={(e) => handleQuestionChange(index, e.target.value)}
                 />
 
-                {/* Liste des choix de réponse */}
                 {question.choices.map((choice: any, choiceIndex: number) => (
                   <div
                     key={choiceIndex}
@@ -249,7 +267,6 @@ const QuizForm = ({ title, questions, setTitle, setQuestions }) => {
               </>
             )}
 
-            {/* Si la question est de type "typing-box" */}
             {question.type === "typing-box" && (
               <Input
                 placeholder={`Enter Question ${index + 1}`}
@@ -261,7 +278,6 @@ const QuizForm = ({ title, questions, setTitle, setQuestions }) => {
           </div>
         ))}
 
-        {/* Boutons pour ajouter des questions */}
         <div className="flex gap-2">
           <Button
             variant="outline"
@@ -284,7 +300,7 @@ const QuizForm = ({ title, questions, setTitle, setQuestions }) => {
           onConfirm={
             questionType === "multiple-choice"
               ? handleAddMultipleChoiceQuestion
-              : () => {}
+              : handleAddTypingBoxQuestion
           }
           title={
             questionType === "multiple-choice"
@@ -292,20 +308,17 @@ const QuizForm = ({ title, questions, setTitle, setQuestions }) => {
               : "Box Size Configuration"
           }
           description={
-            questionType === "multiple-choice" ? (
-              <Input
-                type="number"
-                placeholder="Enter number of choices"
-                onChange={(e) => setNumChoices(Number(e.target.value))}
-                className="mt-2"
-              />
-            ) : (
-              <Input
-                placeholder="Enter box size (e.g., 3 lines)"
-                onChange={(e) => handleAddTypingBoxQuestion(e.target.value)}
-                className="mt-2"
-              />
-            )
+            <Input
+              type={questionType === "multiple-choice" ? "number" : "number"}
+              placeholder={
+                questionType === "multiple-choice"
+                  ? "Enter number of choices (2-5)"
+                  : "Enter box size (1-10 lines)"
+              }
+              value={dialogInput}
+              onChange={(e) => setDialogInput(e.target.value)}
+              className="mt-2"
+            />
           }
         />
       </CardContent>
@@ -438,9 +451,31 @@ const CreateQuizPage: React.FC = () => {
   const [isConfirmationOpen, setIsConfirmationOpen] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
 
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (questions.length > 0 || title) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    // Cleanup: supprime l'écouteur quand le composant est démonté
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [questions, title]); // Déclenche une mise à jour quand ces variables changent
+
   const generatePDFs = async () => {
     try {
+      if (!title || questions.length === 0) {
+        throw new Error("Cannot generate empty quiz");
+      }
       const quizDoc = new jsPDF();
+      if (title.length > 40) {
+        quizDoc.setFontSize(14);
+      } else {
+        quizDoc.setFontSize(16);
+      }
       const zip = new JSZip();
       // En-tête du Quiz
       quizDoc.setFontSize(16);
@@ -451,10 +486,10 @@ const CreateQuizPage: React.FC = () => {
       quizDoc.setFontSize(11);
       quizDoc.setFont("helvetica", "bold");
       const studentFields = [
-        { label: "Nom: ______________________", x: 20, y: 40 },
-        { label: "Prénom: ____________________", x: 20, y: 48 },
+        { label: "Family name: ______________________", x: 20, y: 40 },
+        { label: "First name: ____________________", x: 20, y: 48 },
         { label: "CIN: ______________________", x: 110, y: 40 },
-        { label: "Classe: ____________________", x: 110, y: 48 },
+        { label: "Class: ____________________", x: 110, y: 48 },
       ];
 
       studentFields.forEach((field) => {
@@ -558,7 +593,7 @@ const CreateQuizPage: React.FC = () => {
       answerSheet.setFontSize(10);
       answerSheet.setFont("helvetica", "bold");
       answerSheet.text(
-        "Nom/Prénom: __________________________________   Classe: ___________   CIN: ______________",
+        "Full name: __________________________________   Class: ___________   CIN: ______________",
         20,
         45
       );
@@ -642,8 +677,16 @@ const CreateQuizPage: React.FC = () => {
           { align: "center" }
         );
       }
-      const quizBlob = quizDoc.output("blob"); // <-- Décommenté
-      const answerBlob = answerSheet.output("blob"); // <-- Décommenté
+
+      // Ajouter une limite de pages
+      if (quizDoc.getNumberOfPages() > 10) {
+        toast.error("Quiz too long, maximum 10 pages");
+        throw new Error("Page limit exceeded");
+      }
+
+      const quizBlob = quizDoc.output("blob");
+      const answerBlob = answerSheet.output("blob");
+
       return {
         quizBlob: quizDoc.output("blob"),
         answerBlob: answerSheet.output("blob"),

@@ -23,12 +23,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className="overflow-y-scroll">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased container mx-auto`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen`}
       >
-        {children}
+        <div className="container mx-auto">{children}</div>
       </body>
     </html>
   );
 }
+
+

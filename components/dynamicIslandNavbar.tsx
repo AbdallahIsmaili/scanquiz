@@ -3,7 +3,7 @@ import { AlertTitle, AlertDescription } from "./ui/alert";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "./ui/button";
 import { logout } from "@/app/(auth)/api/auth";
-import { Toaster, toast } from "react-hot-toast";
+import { toast } from "react-hot-toast";
 import Link from "next/link";
 
 const DynamicIslandNavbar = ({ user }) => {
@@ -58,14 +58,14 @@ const DynamicIslandNavbar = ({ user }) => {
           <div className="hidden md:flex text-lg">
             <ul className="flex space-x-4">
               <li className="font-medium">
-                <a
-                  href="#"
+                <Link
+                  href="/"
                   className={`hover:text-gray-600 transition duration-300 ${
                     isScrolled ? "text-gray-800" : "text-white"
                   }`}
                 >
                   Home
-                </a>
+                </Link>
               </li>
               <li className="font-medium">
                 <a

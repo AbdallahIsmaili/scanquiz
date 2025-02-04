@@ -1,138 +1,136 @@
 "use client";
 
-import { useState, ChangeEvent } from "react";
+import { useState } from "react";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { TypographyH2 } from "@/components/Typography";
+import toast, { Toaster } from "react-hot-toast";
 
-type Result = {
-  fullName: string;
-  className: string;
-  cin: string;
-  answers: Record<string, string>;
-  score: number;
-};
+export default function Home() {
+  const [files, setFiles] = useState<FileList | null>(null);
+  const [results, setResults] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
 
-const FileUploader = () => {
-  const [files, setFiles] = useState<File[]>([]);
-  const [results, setResults] = useState<Result[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>("");
+  // Allowed file types
+  const allowedFileTypes = [
+    "image/jpeg",
+    "image/png",
+    "application/pdf",
+    "application/zip",
+    "application/x-rar-compressed",
+  ];
 
-  const correctAnswers = {
-    Q1: "B",
-    Q2: "D",
-    Q3: "A",
-    Q4: "C",
-    Q5: "B",
-    Q6: "A",
-    Q7: "D",
-    Q8: "C",
-    Q9: "A",
-    Q10: "B",
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setFiles(e.target.files);
+    }
   };
 
-  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const uploadedFiles = Array.from(event.target.files || []);
-    setFiles(uploadedFiles);
-  };
+  const handleUpload = async () => {
+    if (!files || files.length === 0) {
+      toast.error("Please select files to upload.");
+      return;
+    }
 
-  const handleExtractAndScore = async () => {
-    if (files.length === 0) return;
-    setIsLoading(true);
-    setError(null);
+    // Check file types
+    for (let i = 0; i < files.length; i++) {
+      if (!allowedFileTypes.includes(files[i].type)) {
+        toast.error(
+          `Invalid file type: ${files[i].name}. Only images, PDFs, ZIPs, and RARs are allowed.`
+        );
+        return;
+      }
+    }
+
+    setLoading(true);
+    toast.loading("Uploading files...");
 
     const formData = new FormData();
-    files.forEach((file) => {
-      formData.append("file", file);
-    });
+    for (let i = 0; i < files.length; i++) {
+      formData.append("files", files[i]);
+    }
 
     try {
-      const response = await axios.post("/pages/api/correction", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
-
-      setResults(response.data.results);
+      const response = await axios.post(
+        "http://localhost:3001/upload",
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+      setResults(response.data);
+      toast.success("Files uploaded and processed successfully!");
     } catch (error) {
       console.error("Error uploading files:", error);
-      setError("There was an issue processing your files. Please try again.");
+      toast.error("Failed to upload files.");
     } finally {
-      setIsLoading(false);
+      setLoading(false);
+      toast.dismiss();
     }
   };
 
   return (
-    <>
-      <div className="relative max-w-screen-xl mx-auto text-center overflow-hidden">
-        <div className="items-center mx-auto">
-          <div className="flex flex-col items-center justify-center w-full max-w-md mx-auto space-y-4 p-6 bg-white rounded-md dark:bg-gray-900 dark:border-gray-700 mt-4 mb-8">
+    <div className="flex justify-center min-h-screen p-6">
+      <Card className="w-full p-6 border-none shadow-none">
+        <CardHeader>
+          <CardTitle className="text-center text-2xl font-bold text-gray-700">
+            Upload MCQ Answer Sheets
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid items-center w-full max-w-4xl mx-auto grid-cols-12 gap-2 ">
             <Label
-              htmlFor="fileInput"
-              className="text-lg font-medium text-gray-700 dark:text-gray-300"
+              htmlFor="file-upload"
+              className="text-gray-600 text-center font-medium col-span-2"
             >
-              Import a PDF or Image
+              Choose files
             </Label>
-            <div className="relative w-full">
-              <input
-                id="fileInput"
-                type="file"
-                accept=".pdf, image/*"
-                multiple
-                onChange={handleFileChange}
-                className="w-full h-12 px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-              />
-            </div>
-            <Button onClick={handleExtractAndScore} disabled={isLoading}>
-              {isLoading ? "Processing..." : "Extract and Score"}
+            <Input
+              id="file-upload"
+              type="file"
+              multiple
+              className="col-span-7 border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500"
+              onChange={handleFileChange}
+              accept=".jpg,.jpeg,.png,.pdf,.zip,.rar"
+            />
+            <Button
+              onClick={handleUpload}
+              disabled={loading}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-all col-span-3"
+            >
+              {loading ? "Uploading..." : "Upload"}
             </Button>
-            {error && <div className="mt-4 text-red-500">{error}</div>}
           </div>
-        </div>
-
-        {results.length > 0 && (
-          <div className="flex flex-col items-center justify-center p-4">
-            <h2 className="text-2xl">Results:</h2>
-            {results.map((result, index) => (
-              <div
-                key={index}
-                className="p-4 border rounded-md mb-4 w-full max-w-md"
-              >
+          {results && (
+            <div className="mt-6 bg-gray-50 p-4 rounded-lg border border-gray-300">
+              <TypographyH2>Extracted Data</TypographyH2>
+              <div className="text-sm text-gray-600">
                 <p>
-                  <strong>Full Name:</strong> {result.fullName}
+                  <strong>Full Name:</strong>{" "}
+                  {results.extractedData[0].studentInfo?.fullName}
                 </p>
                 <p>
-                  <strong>Class:</strong> {result.className}
+                  <strong>Class:</strong>{" "}
+                  {results.extractedData[0].studentInfo?.class}
                 </p>
                 <p>
-                  <strong>CIN:</strong> {result.cin}
+                  <strong>CIN:</strong>{" "}
+                  {results.extractedData[0].studentInfo?.cin}
                 </p>
-                <p>
-                  <strong>Score:</strong> {result.score}
-                </p>
-                <div>
-                  <h3 className="font-semibold">Answers:</h3>
-                  <ul>
-                    {Object.entries(result.answers).map(
-                      ([question, answer]) => (
-                        <li key={question}>
-                          {question}: {answer} -{" "}
-                          {answer === correctAnswers[question]
-                            ? "✅ Correct"
-                            : "❌ Incorrect"}
-                        </li>
-                      )
-                    )}
-                  </ul>
-                </div>
+                <h3 className="mt-4 font-semibold">Extracted Text:</h3>
+                <pre className="overflow-x-auto whitespace-pre-wrap bg-white p-2 border rounded">
+                  {results.extractedData[0].text}
+                </pre>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
-};
-
-export default FileUploader;
+}

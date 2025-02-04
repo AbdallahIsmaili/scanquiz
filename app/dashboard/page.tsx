@@ -1,7 +1,6 @@
 "use client";
 
 import { FC, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { jwtDecode } from "jwt-decode";
 import { logout } from "../(auth)/api/auth";
 import { forbidden } from "next/navigation";
@@ -17,18 +16,14 @@ import {
 import { Input } from "@/components/ui/input";
 import {
   AlertDialog,
-  AlertDialogPortal,
-  AlertDialogOverlay,
-  AlertDialogTrigger,
   AlertDialogContent,
   AlertDialogHeader,
   AlertDialogFooter,
   AlertDialogTitle,
   AlertDialogDescription,
-  AlertDialogAction,
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 
 import {
   ColumnDef,
@@ -56,7 +51,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
@@ -92,7 +86,6 @@ interface Question {
 }
 
 const DashboardPage: FC = () => {
-  const router = useRouter();
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [selectedQuiz, setSelectedQuiz] = useState<string | null>(null);
@@ -260,28 +253,7 @@ const DashboardPage: FC = () => {
   };
 
   const columns: ColumnDef<Question>[] = [
-    {
-      id: "select",
-      header: ({ table }: { table: ReactTable<Question> }) => (
-        <Checkbox
-          checked={
-            table.getIsAllPageRowsSelected() ||
-            (table.getIsSomePageRowsSelected() && "indeterminate")
-          }
-          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-          aria-label="Select all"
-        />
-      ),
-      cell: ({ row }: { row: Row<Question> }) => (
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}
-          aria-label="Select row"
-        />
-      ),
-      enableSorting: false,
-      enableHiding: false,
-    },
+    
     {
       accessorKey: "question_text",
       header: "Question Text",

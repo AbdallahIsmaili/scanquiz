@@ -1,3 +1,5 @@
+"use client"
+
 import { FC, ReactNode } from "react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Separator } from "@/components/ui/separator";
@@ -17,12 +19,23 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { usePathname } from "next/navigation";
+
+
 
 interface LayoutProps {
   children: ReactNode;
 }
 
 const Layout: FC<LayoutProps> = ({ children }) => {
+  const pathname = usePathname();
+
+  // Determine the breadcrumb text based on the pathname
+  const breadcrumbText = () => {
+    if (pathname === "/dashboard/correction") return "Exam Correction";
+    if (pathname === "/dashboard/settings") return "General Settings";
+    return "Exam Management"; // Default
+  };
   return (
     <SidebarProvider>
       <AppSidebar />
@@ -35,11 +48,13 @@ const Layout: FC<LayoutProps> = ({ children }) => {
             <Breadcrumb>
               <BreadcrumbList>
                 <BreadcrumbItem className="hidden md:block">
-                  <BreadcrumbLink href="#">QCM Exam Dashboard</BreadcrumbLink>
+                  <BreadcrumbLink href="/dashboard">
+                    QCM Exam Dashboard
+                  </BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className="hidden md:block" />
                 <BreadcrumbItem>
-                  <BreadcrumbPage>Exam Management</BreadcrumbPage>
+                  <BreadcrumbPage>{breadcrumbText()}</BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>

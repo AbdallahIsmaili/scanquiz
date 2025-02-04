@@ -4,15 +4,48 @@
 
 @font-face {
     font-family: 'Helvetica';
-    src: url('/fonts/helvetica/helvetica.ttf') format('truetype');
+    src: url('/fonts/helvetica/Helvetica.ttf') format('truetype');
     font-weight: normal;
     font-style: normal;
+}
+
+@font-face {
+  font-family: 'Helvetica';
+  src: url('/fonts/helvetica/Helvetica-Bold.ttf') format('truetype');
+  font-weight: bold;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Helvetica';
+  src: url('/fonts/helvetica/Helvetica-ExtraBold.ttf') format('truetype');
+  font-weight: 800; /* Extrabold */
+  font-style: normal;
 }
 
 
 /* Disable transitions for dropdowns */
 .dropdown, .select {
   transition: none !important;
+}
+
+
+@keyframes pulseClick {
+  0% {
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.4), 0 0 25px rgba(255, 255, 255, 0.5), 0 0 5px rgba(255, 255, 255, 0.5);
+  }
+  50% {
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.4), 0 0 25px rgba(255, 255, 255, 0.7), 0 0 5px rgba(255, 255, 255, 0.7);
+  }
+  100% {
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.4), 0 0 25px rgba(255, 255, 255, 0.5), 0 0 5px rgba(255, 255, 255, 0.5);
+  }
+}
+
+@layer utilities {
+  .animate-pulseClick {
+    animation: pulseClick 1.5s ease-in-out infinite;
+  }
 }
 
 

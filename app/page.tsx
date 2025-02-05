@@ -15,7 +15,6 @@ const HomePage = () => {
     setUser(authUser);
 
     if (authUser && authUser.fullname) {
-      // Check if the toast has already been shown
       const toastShown = localStorage.getItem("toastShown");
 
       if (!toastShown) {
@@ -27,7 +26,6 @@ const HomePage = () => {
             color: "#fff",
           },
         });
-        // Set the toastShown flag in local storage
         localStorage.setItem("toastShown", "true");
       }
     } else {
@@ -50,37 +48,38 @@ const HomePage = () => {
   }, []);
 
   return (
-    <div>
+    <div className="relative min-h-screen text-white flex flex-col items-center justify-center ">
       <Toaster position="top-right" reverseOrder={false} />
-
       <DynamicIslandNavbar user={user} />
-      <main className="h-screen">
-        <section className="hero mt-16">
-          <h1>Welcome to QuizScan</h1>
-          <p>Your ultimate solution for creating and scanning quizzes.</p>
-          <Button>
-            <Link href="/pages">Create Quiz</Link>
-          </Button>
-        </section>
-        <section className="features">
-          <h2>Features</h2>
-          <ul>
-            <li>Create custom quizzes easily.</li>
-            <li>Scan and grade quizzes automatically.</li>
-            <li>Generate detailed reports and analytics.</li>
-          </ul>
-        </section>
+
+      <main className="text-center px-6">
+        {/* Secondary Heading with Gold Gradient and White Shadow */}
+        <h3 className="py-4 text-2xl font-bold bg-gradient-to-br from-purple-200 to-purple-500 text-transparent bg-clip-text [text-shadow:_0_1px_2px_rgb(255_255_255_/_40%)]">
+          Free MCQ Generator
+        </h3>
+
+        {/* Main Heading with White Gradient, Increased Line Spacing, and White Shadow */}
+        <h1 className="text-8xl font-extrabold bg-gradient-to-r from-white to-gray-300 text-transparent bg-clip-text tracking-tighter leading-[1.2] [text-shadow:_0_1px_2px_rgb(255_255_255_/_40%)]">
+          Multiple Choice <br /> Question Generator
+        </h1>
+
+        {/* Description with White Shadow */}
+        <p className="text-gray-300 mt-4 text-xl max-w-2xl mx-auto [text-shadow:_0_1px_2px_rgb(255_255_255_/_40%)]">
+          Create multiple-choice quizzes easily by uploading your questions.
+          Export the quizzes, import answer sheets for grading, and receive
+          detailed results.
+        </p>
+
+        {/* Call-to-Action Button */}
+        <Button className="animate-pulseClick mt-10 px-8 py-6 bg-purple-600 hover:bg-purple-700 text-lg font-semibold rounded-md shadow-lg transition [text-shadow:_0_1px_2px_rgb(255_255_255_/_40%)]">
+          <Link href="/pages">Create Your MCQ Quiz Now!</Link>
+        </Button>
+
+        {/* Subtext with White Shadow */}
+        <p className="text-gray-400 mt-2 text-sm [text-shadow:_0_1px_2px_rgb(255_255_255_/_40%)]">
+          Start using now!
+        </p>
       </main>
-      <style jsx>{`
-        .hero {
-          text-align: center;
-          padding: 2rem;
-          background: #fff;
-        }
-        .features {
-          padding: 2rem;
-        }
-      `}</style>
     </div>
   );
 };

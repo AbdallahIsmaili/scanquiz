@@ -377,7 +377,7 @@ const QuizPreview = ({
 
     if (response.ok) {
       const { omrSheetUrl } = await response.json();
-      window.open(omrSheetUrl, "_blank"); // ✅ Open PDF in a new tab
+      window.open(omrSheetUrl, "_blank");
     } else {
       toast.error("Error generating OMR sheet");
     }

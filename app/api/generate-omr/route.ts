@@ -23,7 +23,6 @@ export async function POST(req: Request) {
         const response = JSON.parse(pythonOutput.trim().split("\n").pop()); // Get last line
         const omrSheetUrl = response.omrSheetUrl;
 
-        // ✅ Return direct link to the file in /public/
         resolve(NextResponse.json({ omrSheetUrl }));
       } catch (error) {
         resolve(

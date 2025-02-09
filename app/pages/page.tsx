@@ -153,6 +153,14 @@ const QuizForm = ({ title, questions, setTitle, setQuestions }) => {
     setQuestions(questions.filter((_, i) => i !== index));
   };
 
+
+
+
+  
+
+
+
+
   const handleAddMultipleChoiceQuestion = () => {
     // Convertir dialogInput en nombre
     const numChoices = parseInt(dialogInput, 10);
@@ -360,6 +368,23 @@ const QuizPreview = ({
     }
   };
 
+  const generateAnswerSheet = async () => {
+    const response = await fetch("/api/generate-omr", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, questions }),
+    });
+
+    if (response.ok) {
+      const { omrSheetUrl } = await response.json();
+      window.open(omrSheetUrl, "_blank"); // ✅ Open PDF in a new tab
+    } else {
+      toast.error("Error generating OMR sheet");
+    }
+  };
+
+
+
   return (
     <Card className="sticky top-4 col-span-1">
       <CardHeader>
@@ -398,6 +423,10 @@ const QuizPreview = ({
           >
             <Download className="w-4 h-4 mr-2" />
             Save Draft
+          </Button>
+
+          <Button className="w-full" onClick={generateAnswerSheet}>
+            Generate Answer Sheet
           </Button>
 
           <Button

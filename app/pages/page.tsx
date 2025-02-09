@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "react-hot-toast";
 import { jsPDF } from "jspdf";
+import "jspdf-autotable";
 import {
   Trash,
   MoreVertical,
@@ -486,10 +487,10 @@ const CreateQuizPage: React.FC = () => {
       quizDoc.setFontSize(11);
       quizDoc.setFont("helvetica", "bold");
       const studentFields = [
-        { label: "Family name: ______________________", x: 20, y: 40 },
-        { label: "First name: ____________________", x: 20, y: 48 },
-        { label: "CIN: ______________________", x: 110, y: 40 },
-        { label: "Class: ____________________", x: 110, y: 48 },
+        { label: "Family name:", x: 20, y: 40 },
+        { label: "First name:", x: 20, y: 48 },
+        { label: "CIN:", x: 110, y: 40 },
+        { label: "Class:", x: 110, y: 48 },
       ];
 
       studentFields.forEach((field) => {
@@ -580,7 +581,7 @@ const CreateQuizPage: React.FC = () => {
         quizDoc.text(`Page ${i} / ${pageCount}`, 105, 285, { align: "center" });
       }
 
-      // Feuille de réponses améliorée
+      // Feuille de réponses
       const answerSheet = new jsPDF();
 
       // En-tête centré
@@ -592,13 +593,28 @@ const CreateQuizPage: React.FC = () => {
       // Informations Étudiant
       answerSheet.setFontSize(10);
       answerSheet.setFont("helvetica", "bold");
-      answerSheet.text(
-        "Full name: __________________________________   Class: ___________   CIN: ______________",
-        20,
-        45
-      );
+
+      const studentFields1 = [
+        { label: "Family name:", x: 20, y: 40 },
+        { label: "First name:", x: 20, y: 48 },
+        { label: "CIN:", x: 110, y: 40 },
+        { label: "Class:", x: 110, y: 48 },
+      ];
+
+      studentFields1.forEach((field) => {
+        answerSheet.text(field.label, field.x, field.y);
+      });
+
       answerSheet.setLineWidth(0.5);
       answerSheet.line(20, 50, 190, 50);
+      answerSheet.text(
+        "Réponses (Ne rien écrire en dehors des cases)",
+        105,
+        55,
+        {
+          align: "center",
+        }
+      );
 
       // Configuration dynamique
       const maxChoices = questions.reduce(
@@ -607,65 +623,62 @@ const CreateQuizPage: React.FC = () => {
         0
       );
 
-      const startY = 60; // Position verticale de départ du tableau
-
-      const tableConfig = {
-        colWidth: 18,
-        rowHeight: 14,
-        header: [
-          "Question",
-          ...Array.from({ length: maxChoices }, (_, i) =>
-            String.fromCharCode(65 + i)
-          ),
+      // Configuration du tableau
+      (answerSheet as any).autoTable({
+        startY: 60,
+        head: [
+          [
+            "Question",
+            ...Array.from({ length: maxChoices }, (_, i) =>
+              String.fromCharCode(65 + i)
+            ),
+          ],
         ],
-      };
-
-      // Calcul de positionnement précis
-      const totalTableWidth = tableConfig.colWidth * tableConfig.header.length;
-      const startX =
-        (answerSheet.internal.pageSize.width - totalTableWidth) / 2;
-
-      // En-têtes alignés
-      answerSheet.setFont("helvetica", "bold");
-      tableConfig.header.forEach((header, i) => {
-        const xPos = startX + i * tableConfig.colWidth;
-
-        // Alignement différent pour "Question"
-        if (i === 0) {
-          answerSheet.text(header, xPos + tableConfig.colWidth - 2, startY, {
-            align: "right", // Alignement à droite pour correspondre aux Q1, Q2
-          });
-        } else {
-          answerSheet.text(header, xPos + tableConfig.colWidth / 2, startY, {
-            align: "center", // Centrage pour les lettres
-          });
-        }
+        body: questions
+          .filter((q) => q.type === "multiple-choice")
+          .map((q, index) => [
+            `Q${index + 1}`,
+            ...Array.from({ length: maxChoices }, (_, i) =>
+              i < q.choices.length ? "" : ""
+            ),
+          ]),
+        styles: {
+          fontSize: 10,
+          cellPadding: 3,
+          valign: "middle",
+          halign: "center",
+        },
+        headStyles: {
+          fillColor: [41, 128, 185], // Couleur bleue pour l'en-tête
+          textColor: 255,
+          fontStyle: "bold",
+        },
+        bodyStyles: {
+          textColor: 0,
+          fillColor: 255, // Fond blanc pour les lignes
+        },
+        columnStyles: {
+          0: {
+            // Style colonne "Question"
+            halign: "left",
+            cellWidth: 25,
+            fontStyle: "bold",
+          },
+          // Style pour les colonnes de réponses
+          ...Object.fromEntries(
+            Array.from({ length: maxChoices }).map((_, i) => [
+              i + 1,
+              {
+                cellWidth: 15,
+                halign: "center",
+              },
+            ])
+          ),
+        },
+        theme: "grid", // Théma simple avec bordures
+        margin: { left: 20 },
       });
 
-      // Cases à cocher
-      questions.forEach((question, index) => {
-        if (question.type !== "multiple-choice") return;
-
-        const y = startY + (index + 1) * tableConfig.rowHeight;
-
-        // Positionnement du numéro de question
-        answerSheet.text(
-          `Q${index + 1}`,
-          startX + tableConfig.colWidth - 8, // Alignement coordonné avec l'en-tête
-          y + 4,
-          { align: "right" }
-        );
-
-        // Cases alignées sous les lettres
-        for (let i = 0; i < question.choices.length; i++) {
-          const xPos =
-            startX +
-            (i + 1) * tableConfig.colWidth + // Décalage pour la colonne Question
-            tableConfig.colWidth / 2 -
-            4;
-          answerSheet.rect(xPos, y - 1, 8, 8);
-        }
-      });
       // Après avoir généré le tableau dans la feuille de réponses
       const answerPageCount = answerSheet.getNumberOfPages();
       for (let i = 1; i <= answerPageCount; i++) {

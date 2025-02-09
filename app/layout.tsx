@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import LayoutWrapper from "./LayoutWrapper"; // Import client-side component
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,11 +24,11 @@ export const metadata: Metadata = {
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className="overflow-y-scroll">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased container mx-auto`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen`}
       >
-        {children}
+        <LayoutWrapper>{children}</LayoutWrapper>
       </body>
     </html>
   );

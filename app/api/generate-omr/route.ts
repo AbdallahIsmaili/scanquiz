@@ -18,13 +18,24 @@ export async function POST(req: Request) {
       pythonOutput += data.toString();
     });
 
-    pythonProcess.on("close", () => {
+    pythonProcess.on("close", async () => {
       try {
-        const response = JSON.parse(pythonOutput.trim().split("\n").pop()); // Get last line
+        const response = JSON.parse(pythonOutput.trim().split("\n").pop());
+        const exam_id = response.exam_id;
         const omrSheetUrl = response.omrSheetUrl;
 
-        resolve(NextResponse.json({ omrSheetUrl }));
+        console.log("Generated New Exam ID:", exam_id);
+
+        // ✅ Send updated `exam_id` to backend
+        await fetch("http://localhost:3001/save-quiz", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title, questions, exam_id }),
+        });
+
+        resolve(NextResponse.json({ omrSheetUrl, exam_id }));
       } catch (error) {
+        console.error("❌ Error parsing Python output:", error);
         resolve(
           NextResponse.json(
             { error: "Failed to generate OMR sheet" },

@@ -107,5 +107,5 @@ if os.path.exists(image_path):
 else:
     print("❌ PDF creation skipped because image was not found!")
 
-print(json.dumps({"omrSheetUrl": f"/generated-sheets/omr_sheet_{exam_id}.pdf"}))
+print(json.dumps({"exam_id": exam_id, "omrSheetUrl": f"/generated-sheets/omr_sheet_{exam_id}.pdf"}))
 

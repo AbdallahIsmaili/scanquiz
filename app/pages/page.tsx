@@ -350,38 +350,90 @@ const QuizPreview = ({
     answerUrl: null,
   });
 
+
+
+  
   const handlePreview = async () => {
     try {
+      toast.loading("Generating preview...", { id: "preview-loading" });
+
+      // ✅ Ensure previewContext is available
       if (!previewContext) {
-        toast.error("Preview context not available");
+        toast.error("Preview context not available", { id: "preview-loading" });
         return;
       }
 
+      // ✅ Step 1: Generate Quiz PDF (As before)
       const { quizBlob, answerBlob } = await previewContext.generatePDFs();
-      setPreviewData({
-        quizUrl: URL.createObjectURL(quizBlob),
-        answerUrl: URL.createObjectURL(answerBlob),
+      const quizUrl = URL.createObjectURL(quizBlob); // Keep the quiz generation as before
+      let answerUrl = URL.createObjectURL(answerBlob); // Default answer sheet preview
+
+      // ✅ Step 2: Generate OMR Answer Sheet
+      const omrResponse = await fetch("/api/generate-omr", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, questions }),
       });
+
+      if (omrResponse.ok) {
+        const { omrSheetUrl } = await omrResponse.json();
+        console.log("Generated OMR Sheet:", omrSheetUrl);
+        answerUrl = omrSheetUrl; // ✅ Update answer sheet preview
+      } else {
+        toast.error("Error generating answer sheet, using previous version.", {
+          id: "preview-loading",
+        });
+      }
+
+      // ✅ Step 3: Update Both Previews
+      setPreviewData({
+        quizUrl, // ✅ Keep the quiz preview as before
+        answerUrl, // ✅ Update only the answer sheet
+      });
+
       setIsPreviewModalOpen(true);
+      toast.success("Preview updated!", { id: "preview-loading" });
     } catch (error) {
-      toast.error("Error generating preview");
+      console.error("Error generating preview:", error);
+      toast.error("Error updating preview", { id: "preview-loading" });
     }
   };
+
+
+
+
+
+
+
+
+  
+
 
   const generateAnswerSheet = async () => {
-    const response = await fetch("/api/generate-omr", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, questions }),
-    });
+    try {
+      toast.loading("Generating OMR sheet...", { id: "omr-gen" });
 
-    if (response.ok) {
-      const { omrSheetUrl } = await response.json();
-      window.open(omrSheetUrl, "_blank");
-    } else {
-      toast.error("Error generating OMR sheet");
+      const response = await fetch("/api/generate-omr", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, questions }),
+      });
+
+      if (response.ok) {
+        const { omrSheetUrl } = await response.json();
+        toast.success("OMR sheet generated successfully!", { id: "omr-gen" });
+
+        // Open PDF in a new tab
+        window.open(omrSheetUrl, "_blank");
+      } else {
+        toast.error("Error generating OMR sheet", { id: "omr-gen" });
+      }
+    } catch (error) {
+      toast.error("Something went wrong. Please try again.", { id: "omr-gen" });
+      console.error("Error:", error);
     }
   };
+
 
 
 
@@ -422,12 +474,12 @@ const QuizPreview = ({
             disabled={isSaveDisabled}
           >
             <Download className="w-4 h-4 mr-2" />
-            Save Draft
+            Save
           </Button>
 
-          <Button className="w-full" onClick={generateAnswerSheet}>
+          {/* <Button className="w-full" onClick={generateAnswerSheet}>
             Generate Answer Sheet
-          </Button>
+          </Button> */}
 
           <Button
             className="w-full"
@@ -739,36 +791,65 @@ const CreateQuizPage: React.FC = () => {
     }
   };
 
+  
   const handleConfirmSubmit = async () => {
     const token = localStorage.getItem("token");
 
     if (!token) {
       toast.error("Authorization token not found. Please log in again.");
-      //setIsConfirmationDialogOpen(false);
       return;
     }
 
-    console.log("Token:", token);
-
-    const response = await fetch("http://localhost:3001/save-quiz", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ title, questions }),
+    toast.loading("Generating OMR sheet and saving quiz...", {
+      id: "save-quiz",
     });
 
-    if (response.ok) {
-      //setIsDialogOpen(true);
-      toast.success("Quiz saved successfully!");
-    } else {
-      const errorMessage = await response.text();
-      console.error("Error response:", errorMessage);
-      toast.error(`Error saving quiz: ${errorMessage}`);
+    try {
+      // ✅ Step 1: Generate OMR Sheet and get `exam_id`
+      const omrResponse = await fetch("/api/generate-omr", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, questions }),
+      });
+
+      if (!omrResponse.ok) {
+        toast.error("Error generating OMR sheet", { id: "save-quiz" });
+        return;
+      }
+
+      const { exam_id, omrSheetUrl } = await omrResponse.json();
+      console.log("Generated Exam ID:", exam_id);
+
+      // ✅ Step 2: Send `exam_id` to backend
+      const response = await fetch("http://localhost:3001/save-quiz", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ title, questions, exam_id }),
+      });
+
+      if (response.ok) {
+        toast.success("Quiz saved successfully!", { id: "save-quiz" });
+
+        // ✅ Open OMR sheet after successful save
+        window.open(omrSheetUrl, "_blank");
+      } else {
+        const errorMessage = await response.text();
+        console.error("Error response:", errorMessage);
+        toast.error(`Error saving quiz: ${errorMessage}`, { id: "save-quiz" });
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      toast.error("Something went wrong. Please try again.", {
+        id: "save-quiz",
+      });
     }
-    //setIsConfirmationDialogOpen(false);
   };
+
+
+  
   const handleSubmitQuiz = async () => {
     try {
       // Validation du schéma

@@ -20,6 +20,20 @@ import {
 } from "@/components/ui/alert-dialog";
 import * as XLSX from "xlsx";
 import { ArrowRight } from "lucide-react";
+import { useRouter } from "next/navigation";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
+import { Save, FileText, File, Download, MoreHorizontal } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
 
 export default function Home() {
   const [files, setFiles] = useState<FileList | null>(null);
@@ -27,6 +41,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [maxScore, setMaxScore] = useState<number>(20);
   const [error, setError] = useState(0);
+  const router = useRouter();
 
   // Function to update scores based on maxScore change
   const updateScoresWithMaxScore = () => {
@@ -307,6 +322,7 @@ export default function Home() {
       });
 
       toast.success("Results saved successfully!");
+      return results.examData.exam_info.exam_id;
     } catch (error) {
       console.error("Error saving results:", error);
       toast.error("Failed to save results.");
@@ -530,6 +546,125 @@ export default function Home() {
     XLSX.writeFile(workbook, `student_info_${examInfo?.exam_id || "N/A"}.xlsx`);
     toast.success("Styled Student Info exported!");
   };
+
+  const handleViewStatistics = async () => {
+    try {
+      // Save results to the database
+      const examId = await handleSaveResults();
+      if (!examId) {
+        throw new Error("Failed to get exam ID.");
+      }
+
+      // Redirect to the statistics page with examId
+      router.push(`/dashboard/statistics/${examId}`);
+    } catch (error) {
+      console.error("Error saving results or redirecting:", error);
+      toast.error("Failed to save results or redirect.");
+    }
+  };
+
+const handleExportStudentInfoPDF = () => {
+  if (!results || !results.gradedResults) {
+    toast.error("No results to export!");
+    return;
+  }
+
+  const doc = new jsPDF();
+  const examInfo = results.examData.exam_info;
+
+  doc.setFontSize(16);
+  doc.text("Student Information", 14, 20);
+  doc.setFontSize(12);
+  doc.text(`Exam Title: ${examInfo?.title || "N/A"}`, 14, 30);
+  doc.text(`Exam ID: ${examInfo?.exam_id || "N/A"}`, 14, 40);
+
+  const uniqueStudents = results.gradedResults.filter(
+    (student, index, self) =>
+      index ===
+      self.findIndex((s) => s.student_info?.CIN === student.student_info?.CIN)
+  );
+
+  const tableData = uniqueStudents.map((student) => [
+    student.student_info?.Name || "N/A",
+    student.student_info?.CIN || "N/A",
+    student.student_info?.Class || "N/A",
+    { content: student.score, styles: { fontStyle: "bold" } },
+  ]);
+
+  doc.autoTable({
+    startY: 50,
+    head: [["Student Name", "CIN", "Class", "Score"]],
+    body: tableData,
+    headStyles: { fillColor: [79, 129, 189], textColor: 255 },
+  });
+
+  doc.save(`student_info_${examInfo?.exam_id || "N/A"}.pdf`);
+  toast.success("Student Info exported to PDF!");
+};
+
+const handleExportToPDF = () => {
+  if (!results || !results.gradedResults) {
+    toast.error("No results to export!");
+    return;
+  }
+
+  const doc = new jsPDF();
+  const examInfo = results.examData.exam_info;
+
+  doc.setFontSize(16);
+  doc.text("Exam Report", 14, 20);
+  doc.setFontSize(12);
+  doc.text(`Exam Title: ${examInfo?.title || "N/A"}`, 14, 30);
+  doc.text(`Exam ID: ${examInfo?.exam_id || "N/A"}`, 14, 40);
+
+  const uniqueStudents = results.gradedResults.filter(
+    (student, index, self) =>
+      index ===
+      self.findIndex((s) => s.student_info?.CIN === student.student_info?.CIN)
+  );
+
+  const tableData = [];
+  uniqueStudents.forEach((student) => {
+    tableData.push(["Student Name", "CIN", "Class", "Score"]);
+    tableData.push([
+      student.student_info?.Name || "N/A",
+      student.student_info?.CIN || "N/A",
+      student.student_info?.Class || "N/A",
+      { content: student.score, styles: { fontStyle: "bold" } },
+    ]);
+    tableData.push([]);
+    tableData.push([
+      "Question",
+      "Chosen Options",
+      "Correct Options",
+      "Is Correct",
+    ]);
+    student.answers.forEach((answer) => {
+      tableData.push([
+        `Q${answer.question}`,
+        answer.selectedChoices.join(", ") || "No Answer",
+        answer.correctAnswers.join(", "),
+        {
+          content: answer.isCorrect ? "Correct" : "Wrong",
+          styles: {
+            fontStyle: "bold",
+            textColor: answer.isCorrect ? "green" : "red",
+          },
+        },
+      ]);
+    });
+    tableData.push([]);
+  });
+
+  doc.autoTable({
+    startY: 50,
+    headStyles: { fillColor: [79, 129, 189], textColor: 255 },
+    body: tableData,
+  });
+
+  doc.save(`exam_results_${examInfo?.exam_id || "N/A"}.pdf`);
+  toast.success("Results exported to PDF!");
+};
 
 
   return (
@@ -757,17 +892,10 @@ export default function Home() {
                   </p>
                 </div>
                 <Button
-                  onClick={() => {
-                    // Navigate to the statistics page for this exam
-                    // Replace this with your actual navigation logic
-                    console.log(
-                      "Navigating to statistics page for exam:",
-                      results.examData.exam_info.exam_id
-                    );
-                  }}
+                  onClick={handleViewStatistics} // Use the new handler
                   className="flex items-center bg-white text-blue-600 hover:bg-blue-50 font-semibold py-2 px-4 rounded-lg transition-all"
                 >
-                  <span>Save and View Statistics</span>
+                  <span>View Statistics</span>
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </div>
@@ -777,26 +905,47 @@ export default function Home() {
           {/* Buttons for Save and Export */}
           {results?.gradedResults && results.gradedResults.length > 0 && (
             <div className="flex space-x-4 mt-6">
+              {/* Save Results Button */}
               <Button
                 onClick={handleSaveResults}
                 className="bg-green-600 text-white"
               >
+                <Save className="mr-2 h-4 w-4" />
                 Save Results
               </Button>
 
-              <Button
-                onClick={handleExportToExcel}
-                className="bg-blue-600 text-white"
-              >
-                Export Full Report (With Questions)
-              </Button>
-
-              <Button
-                onClick={handleExportStudentInfo}
-                className="bg-yellow-600 text-white"
-              >
-                Export Student Info Only
-              </Button>
+              {/* Export Dropdown Menu */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="bg-blue-600 text-white">
+                    <Download className="mr-2 h-4 w-4" />
+                    Export Options
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56">
+                  <DropdownMenuLabel>Export Actions</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem onClick={handleExportToExcel}>
+                      <FileText className="mr-2 h-4 w-4" />
+                      Export Full Report (Excel)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleExportStudentInfo}>
+                      <FileText className="mr-2 h-4 w-4" />
+                      Export Student Info (Excel)
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleExportToPDF}>
+                      <File className="mr-2 h-4 w-4" />
+                      Export Full Report (PDF)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleExportStudentInfoPDF}>
+                      <File className="mr-2 h-4 w-4" />
+                      Export Student Info (PDF)
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           )}
         </CardContent>

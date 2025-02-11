@@ -1,29 +1,97 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { TypographyH2 } from "@/components/Typography";
-import toast, { Toaster } from "react-hot-toast";
+import toast, { Toast, Toaster } from "react-hot-toast";
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
 
 export default function Home() {
   const [files, setFiles] = useState<FileList | null>(null);
   const [results, setResults] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [maxScore, setMaxScore] = useState<number>(20);
+  const [error, setError] = useState(0);
 
-  const allowedFileTypes = [
-    "image/jpeg",
-    "image/png",
-    "application/pdf",
-    "application/zip",
-    "application/x-zip-compressed",
-    "application/x-rar-compressed",
-    "application/vnd.rar",
-    "application/octet-stream",
-  ];
+  // Function to update scores based on maxScore change
+  const updateScoresWithMaxScore = () => {
+    if (!results || !results.gradedResults) return;
+
+    const updatedResults = results.gradedResults.map((student) => {
+      const totalCorrect = student.answers.filter(
+        (ans) => ans.isCorrect
+      ).length;
+      const totalQuestions = student.answers.length;
+      const updatedScore = ((totalCorrect / totalQuestions) * maxScore).toFixed(
+        2
+      );
+
+      return { ...student, score: updatedScore };
+    });
+
+    setResults((prevResults) => ({
+      ...prevResults,
+      gradedResults: updatedResults,
+    }));
+  };
+
+  // Recalculate scores when maxScore changes
+  useEffect(() => {
+    updateScoresWithMaxScore();
+  }, [maxScore]);
+
+   useEffect(() => {
+     switch (error) {
+       case 1:
+         toast.error("Exam not found. Please check the exam ID and try again.");
+         break;
+       case 2:
+         toast.error("Server error. Please try again later.");
+         break;
+       case 3:
+         toast.error("Failed to fetch exam data.");
+         break;
+       case 4:
+         toast.error("An unexpected error occurred. Please try again.");
+         break;
+       default:
+         break;
+     }
+
+     // Reset the error state after showing the toast
+     if (error !== 0) {
+       setError(0);
+     }
+   }, [error]);
+
+
+  axios.interceptors.response.use(
+    (response) => response, // Success case: pass through
+    (error) => {
+      // Handle the error silently
+      if (error.response?.status === 404) {
+        // You can optionally log the error internally (e.g., for debugging)
+        console.log("Exam not found (404). Error handled silently.");
+      } else {
+        // Log other errors (optional)
+        console.error("Axios error:", error);
+      }
+      return Promise.reject(error); // Reject the promise to propagate the error
+    }
+  );
 
   const allowedFileExtensions = [
     ".jpg",
@@ -54,148 +122,65 @@ export default function Home() {
     }
   };
 
-  // const handleUpload = async () => {
-  //   if (!files || files.length === 0) {
-  //     toast.error("Please select files to upload.");
-  //     return;
-  //   }
-
-  //   // Check file extensions
-  //   for (let i = 0; i < files.length; i++) {
-  //     const fileExtension = files[i].name.split(".").pop()?.toLowerCase();
-
-  //     if (!allowedFileExtensions.includes(`.${fileExtension}`)) {
-  //       toast.error(
-  //         `Invalid file type: ${files[i].name}. Only images, PDFs, ZIPs, and RARs are allowed.`
-  //       );
-  //       return;
-  //     }
-  //   }
-
-  //   setLoading(true);
-  //   toast.loading("Uploading files...");
-
-  //   const formData = new FormData();
-  //   for (let i = 0; i < files.length; i++) {
-  //     formData.append("files", files[i]);
-  //   }
-
-  //   try {
-  //     const response = await axios.post("/api/process-omr", formData, {
-  //       headers: { "Content-Type": "multipart/form-data" },
-  //     });
-
-  //     setResults(response.data);
-  //     toast.success("Files uploaded and processed successfully!");
-  //   } catch (error) {
-  //     console.error("Error uploading files:", error);
-  //     toast.error("Failed to upload files.");
-  //   } finally {
-  //     setLoading(false);
-  //     toast.dismiss();
-  //   }
-  // };
-
-
-  // const handleUpload = async () => {
-  //   if (!files || files.length === 0) {
-  //     toast.error("Please select files to upload.");
-  //     return;
-  //   }
-
-  //   setLoading(true);
-  //   toast.loading("Uploading files...");
-
-  //   const formData = new FormData();
-  //   for (let i = 0; i < files.length; i++) {
-  //     formData.append("files", files[i]);
-  //   }
-
-  //   try {
-  //     const response = await axios.post("/api/process-omr", formData, {
-  //       headers: { "Content-Type": "multipart/form-data" },
-  //     });
-
-  //     console.log("Response data:", response.data);
-
-  //     if (
-  //       !response.data.extractedData[0]?.exam_info ||
-  //       !response.data.extractedData[0].exam_info.exam_id
-  //     ) {
-  //       throw new Error("exam_id not found in response data.");
-  //     }
-
-  //     const examId = response.data.extractedData[0].exam_info.exam_id;
-  //     const examData = await fetchExamInfo(examId);
-
-  //     if (examData) {
-  //       setResults({
-  //         extractedData: response.data.extractedData,
-  //         examData, // ✅ Store fetched exam data
-  //       });
-  //     }
-
-  //     toast.success("Files uploaded and processed successfully!");
-  //   } catch (error) {
-  //     console.error("Error uploading files:", error);
-  //     toast.error("Failed to upload files.");
-  //   } finally {
-  //     setLoading(false);
-  //     toast.dismiss();
-  //   }
-  // };
-
-
-const handleUpload = async () => {
-  if (!files || files.length === 0) {
-    toast.error("Please select files to upload.");
-    return;
-  }
-
-  setLoading(true);
-  toast.loading("Uploading files...");
-
-  const formData = new FormData();
-  for (let i = 0; i < files.length; i++) {
-    formData.append("files", files[i]);
-  }
-
-  try {
-    // Upload and process OMR
-    const response = await axios.post("/api/process-omr", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
-
-    console.log("Response data:", response.data);
-
-    if (
-      !response.data.extractedData[0]?.exam_info ||
-      !response.data.extractedData[0].exam_info.exam_id
-    ) {
-      throw new Error("exam_id not found in response data.");
+  const handleUpload = async () => {
+    // Check if files are selected
+    if (!files || files.length === 0) {
+      toast.error("Please select files to upload.");
+      return;
     }
 
-    const examId = response.data.extractedData[0].exam_info.exam_id;
-    const examData = await fetchExamInfo(examId);
+    // Set loading state and show loading toast
+    setLoading(true);
+    toast.loading("Uploading files...");
 
-    if (examData) {
-      // **Step 1: Extract Student Answers & Convert to Array**
+    // Prepare form data for the upload
+    const formData = new FormData();
+    for (let i = 0; i < files.length; i++) {
+      formData.append("files", files[i]);
+    }
+
+    try {
+      // Step 1: Upload files and process OMR data
+      const response = await axios.post("/api/process-omr", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      console.log("Response data:", response.data);
+
+      // Check if the response contains valid exam data
+      if (
+        !response.data.extractedData[0]?.exam_info ||
+        !response.data.extractedData[0].exam_info.exam_id
+      ) {
+        throw new Error("exam_id not found in response data.");
+      }
+
+      // Step 2: Fetch exam information using the exam_id
+      const examId = response.data.extractedData[0].exam_info.exam_id;
+      const examData = await fetchExamInfo(examId);
+
+      // If exam data is not found, stop further processing
+      if (!examData) {
+        return;
+      }
+
+      // Step 3: Extract and format student answers
       const studentAnswers = response.data.extractedData.map((student) => {
-        // ✅ Convert checked_options { Q1: "D", Q2: "C" } → Array format
+        // Convert checked_options from object to array format
         const checkedOptionsArray = Object.entries(student.checked_options).map(
           ([key, value]) => ({
-            question: parseInt(key.replace("Q", ""), 10), // Extract number
+            question: parseInt(key.replace("Q", ""), 10), // Extract question number
             selectedChoices: [value], // Convert to array for comparison
           })
         );
 
         return {
           student_info: student.student_info,
-          checked_options: checkedOptionsArray, // ✅ Now it's an array!
+          checked_options: checkedOptionsArray, // Now in array format
         };
       });
 
-      // **Step 2: Compare Answers**
+      // Step 4: Compare student answers with correct answers and calculate scores
       const gradedResults = studentAnswers.map((student) => {
         const comparedAnswers = student.checked_options.map((studentAns) => {
           const correctQuestion = examData.questions.find(
@@ -206,11 +191,12 @@ const handleUpload = async () => {
             return { ...studentAns, isCorrect: false, correctAnswers: [] };
           }
 
-          // ✅ Fix: Find the actual correct answers
+          // Find the correct answers for the question
           const correctChoices = correctQuestion.choices
             .filter((c) => c.is_correct) // Get only correct answers
-            .map((c) => c.choice_text); // Extract actual text (not position)
+            .map((c) => c.choice_text); // Extract choice text
 
+          // Convert student's selected choices (A, B, C, D) to actual text
           const studentSelected = studentAns.selectedChoices
             ? studentAns.selectedChoices.map((letter) => {
                 const choiceIndex = letter.charCodeAt(0) - 65; // Convert A, B, C, D → Index
@@ -220,6 +206,7 @@ const handleUpload = async () => {
               })
             : [];
 
+          // Check if the student's answers match the correct answers
           const isCorrect =
             studentSelected.length === correctChoices.length &&
             studentSelected.every((choice) => correctChoices.includes(choice));
@@ -227,148 +214,285 @@ const handleUpload = async () => {
           return {
             ...studentAns,
             isCorrect,
-            correctAnswers: correctChoices, // ✅ Now this will be correct!
+            correctAnswers: correctChoices, // Store correct answers
           };
         });
+
+        // Calculate the student's score
+        const totalCorrect = comparedAnswers.filter(
+          (ans) => ans.isCorrect
+        ).length;
+        const totalQuestions = comparedAnswers.length;
+        const score = ((totalCorrect / totalQuestions) * maxScore).toFixed(2); // Round to 2 decimal places
 
         return {
           student_info: student.student_info,
           answers: comparedAnswers,
+          score: score, // Store the calculated score
         };
       });
 
-
+      // Step 5: Update the state with the results
       setResults({
         extractedData: response.data.extractedData,
         examData,
-        gradedResults, // ✅ Store graded answers
+        gradedResults, // Store graded answers
       });
+
+      // Show success toast
+      toast.success("Files uploaded and processed successfully!");
+    } catch (error) {
+      console.error("Error uploading files:", error);
+
+      // Only show a generic error if the error is not already handled by fetchExamInfo
+      if (!axios.isAxiosError(error) || error.response?.status !== 404) {
+        toast.error("Failed to upload files.");
+      }
+    } finally {
+      // Reset loading state and dismiss the loading toast
+      setLoading(false);
+      toast.dismiss();
     }
+  };
 
-    toast.success("Files uploaded and processed successfully!");
-  } catch (error) {
-    console.error("Error uploading files:", error);
-    toast.error("Failed to upload files.");
-  } finally {
-    setLoading(false);
-    toast.dismiss();
-  }
-};
+  axios.interceptors.response.use(
+    (response) => response, // Success case: pass through
+    (error) => {
+      if (error.response?.status === 404) {
+        console.log("Exam not found (404). Error handled silently.");
+      } else {
+        console.error("Axios error:", error);
+      }
+      return Promise.reject(error);
+    }
+  );
 
-
-  const fetchExamInfo = async (examId: string) => {
+  const fetchExamInfo = async (examId) => {
     try {
       const response = await axios.get(
         `http://localhost:3001/api/exam-info/${examId}`
       );
       toast.success("Exam data fetched successfully!");
-      return response.data; // ✅ Return the data instead of setting state
+      return response.data;
     } catch (error) {
-      console.error("Error fetching exam data:", error);
-      toast.error("Failed to fetch exam data.");
+
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status === 404) {
+          setError(1);
+        } else if (error.response?.status === 500) {
+          setError(2);
+        } else {
+          setError(3);
+        }
+      } else {
+        setError(4);
+      }
+
       return null;
     }
   };
 
 
   return (
-    <div className="flex justify-center min-h-screen p-6">
-      <Card className="w-full p-6 border-none shadow-none">
-        <CardHeader>
-          <CardTitle className="text-center text-2xl font-bold text-gray-700">
+    <div className="flex justify-center min-h-screen p-6 bg-gray-50">
+      <Card className="w-full max-w-4xl p-8 bg-white rounded-xl shadow-lg">
+        <CardHeader className="text-center">
+          <CardTitle className="text-3xl font-bold text-gray-800">
             Upload MCQ Answer Sheets
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid items-center w-full max-w-4xl mx-auto grid-cols-12 gap-2 ">
-            <Label
-              htmlFor="file-upload"
-              className="text-gray-600 text-center font-medium col-span-2"
-            >
-              Choose files
-            </Label>
-            <Input
-              id="file-upload"
-              type="file"
-              multiple
-              className="col-span-7 border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500"
-              onChange={handleFileChange}
-              accept=".jpg,.jpeg,.png,.pdf,.zip,.rar"
-            />
-            <Button
-              onClick={handleUpload}
-              disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-all col-span-3"
-            >
-              {loading ? "Uploading..." : "Upload"}
-            </Button>
+        <CardContent className="space-y-8">
+          {/* File Upload Section */}
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+              <Label
+                htmlFor="file-upload"
+                className="text-gray-700 font-medium md:col-span-3"
+              >
+                Choose Files
+              </Label>
+              <Input
+                id="file-upload"
+                type="file"
+                multiple
+                className="md:col-span-7 border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                onChange={handleFileChange}
+                accept=".jpg,.jpeg,.png,.pdf,.zip,.rar"
+              />
+              <Button
+                onClick={handleUpload}
+                disabled={loading}
+                className="w-full md:col-span-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-all"
+              >
+                {loading ? "Uploading..." : "Upload"}
+              </Button>
+            </div>
 
+            {/* Max Score Input */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+              <Label
+                htmlFor="max-score"
+                className="text-gray-700 font-medium md:col-span-3"
+              >
+                Max Score
+              </Label>
+              <Input
+                id="max-score"
+                type="number"
+                value={maxScore}
+                onChange={(e) => setMaxScore(Number(e.target.value))}
+                className="md:col-span-7 border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                min="1"
+              />
+            </div>
           </div>
 
+          {/* Exam Information */}
           {results?.examData && (
-            <div className="mt-6 bg-gray-50 p-4 rounded-lg border border-gray-300">
-              <TypographyH2>Exam Information</TypographyH2>
-              <p>
-                <strong>Exam Title:</strong>{" "}
-                {results.examData.exam_info.title || "N/A"}
-              </p>
-              <p>
-                <strong>Exam ID:</strong>{" "}
-                {results.examData.exam_info.exam_id || "N/A"}
-              </p>
+            <div className="mt-8 bg-blue-50 p-6 rounded-lg border border-blue-200">
+              <TypographyH2 className="text-blue-800">
+                Exam Information
+              </TypographyH2>
+              <div className="mt-4 space-y-2 text-gray-700">
+                <p>
+                  <strong>Exam Title:</strong>{" "}
+                  {results.examData.exam_info.title || "N/A"}
+                </p>
+                <p>
+                  <strong>Exam ID:</strong>{" "}
+                  {results.examData.exam_info.exam_id || "N/A"}
+                </p>
+              </div>
             </div>
           )}
 
+          {/* Student Results */}
           {results?.gradedResults && (
-            <div className="mt-6 bg-gray-50 p-4 rounded-lg border border-gray-300">
-              <TypographyH2>Student Results</TypographyH2>
-
-              {results.gradedResults.map((student, index) => (
-                <div key={index} className="mb-6 border-b pb-4">
-                  <h3 className="text-lg font-semibold text-blue-600">
-                    Student {index + 1}
-                  </h3>
-                  <p>
-                    <strong>Full Name:</strong>{" "}
-                    {student.student_info?.Name || "N/A"}
-                  </p>
-                  <p>
-                    <strong>Class:</strong>{" "}
-                    {student.student_info?.Class || "N/A"}
-                  </p>
-                  <p>
-                    <strong>CIN:</strong> {student.student_info?.CIN || "N/A"}
-                  </p>
-
-                  <h3 className="mt-4 font-semibold text-gray-700">Answers:</h3>
-                  <ul className="mt-2">
-                    {student.answers.map((ans, i) => (
-                      <li key={i} className="mb-2">
-                        <strong>Q{ans.question}:</strong>
-                        <span
-                          className={
-                            ans.isCorrect ? "text-green-600" : "text-red-600"
-                          }
-                        >
-                          {ans.selectedChoices.join(", ") || "No answer"}
+            <div className="mt-8 bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+              <TypographyH2 className="text-gray-800">
+                Student Results
+              </TypographyH2>
+              <div className="mt-6 space-y-6">
+                {results.gradedResults.map((student, index) => (
+                  <div
+                    key={index}
+                    className="p-6 bg-gray-50 rounded-lg border border-gray-100"
+                  >
+                    <h3 className="text-xl font-semibold text-blue-600">
+                      Student {index + 1}
+                    </h3>
+                    <div className="mt-4 space-y-2 text-gray-700">
+                      <p>
+                        <strong>Full Name:</strong>{" "}
+                        {student.student_info?.Name || "N/A"}
+                      </p>
+                      <p>
+                        <strong>Class:</strong>{" "}
+                        {student.student_info?.Class || "N/A"}
+                      </p>
+                      <p>
+                        <strong>CIN:</strong>{" "}
+                        {student.student_info?.CIN || "N/A"}
+                      </p>
+                      <p>
+                        <strong>Score:</strong>{" "}
+                        <span className="font-semibold text-green-600">
+                          {student.score} / {maxScore}
                         </span>
-                        {ans.isCorrect ? (
-                          <span className="text-green-500 ml-2">✔ Correct</span>
-                        ) : (
-                          <>
-                            <span className="text-red-500 ml-2">
-                              ✘ Incorrect
+                      </p>
+                    </div>
+
+                    <h3 className="mt-6 text-lg font-semibold text-gray-700">
+                      Answers:
+                    </h3>
+                    <ul className="mt-4 space-y-4">
+                      {student.answers.map((ans, i) => (
+                        <li
+                          key={i}
+                          className="p-4 bg-white rounded-lg border border-gray-200"
+                        >
+                          <p>
+                            <strong>Q{ans.question}:</strong>{" "}
+                            <span
+                              className={
+                                ans.isCorrect
+                                  ? "text-green-600"
+                                  : "text-red-600"
+                              }
+                            >
+                              {ans.selectedChoices.join(", ") || "No answer"}
                             </span>
-                            <p className="text-gray-500">
-                              Correct Answer: {ans.correctAnswers.join(", ")}
-                            </p>
-                          </>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
+                          </p>
+                          {ans.isCorrect ? (
+                            <p className="text-green-500 mt-2">✔ Correct</p>
+                          ) : (
+                            <div className="mt-2">
+                              <p className="text-red-500">✘ Incorrect</p>
+                              <p className="text-gray-500">
+                                <strong>Correct Answer:</strong>{" "}
+                                {ans.correctAnswers.join(", ")}
+                              </p>
+                            </div>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button className="mt-4 bg-blue-500 hover:bg-blue-600 text-white">
+                          View Answers
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent className="max-w-2xl">
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>
+                            Answers for{" "}
+                            {student.student_info?.Name || "Student"}
+                          </AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Review the student's answers along with the correct
+                            ones.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+
+                        <div className="max-h-80 overflow-y-auto space-y-4 p-2">
+                          {student.answers.map((ans, i) => (
+                            <div
+                              key={i}
+                              className="p-4 bg-gray-100 rounded-lg border border-gray-200"
+                            >
+                              <p>
+                                <strong>Q{i + 1}:</strong> {ans.question}
+                              </p>
+                              <p
+                                className={
+                                  ans.isCorrect
+                                    ? "text-green-600 font-medium"
+                                    : "text-red-600 font-medium"
+                                }
+                              >
+                                <strong>Student's Answer:</strong>{" "}
+                                {ans.selectedChoices?.join(", ") || "No answer"}
+                              </p>
+                              {!ans.isCorrect && (
+                                <p className="text-gray-500">
+                                  <strong>Correct Answer:</strong>{" "}
+                                  {ans.correctAnswers?.join(", ")}
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Close</AlertDialogCancel>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </CardContent>

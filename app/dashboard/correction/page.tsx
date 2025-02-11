@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { TypographyH2 } from "@/components/Typography";
-import toast, { Toast, Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -18,6 +18,8 @@ import {
   AlertDialogFooter,
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
+import * as XLSX from "xlsx";
+import { ArrowRight } from "lucide-react";
 
 export default function Home() {
   const [files, setFiles] = useState<FileList | null>(null);
@@ -292,6 +294,243 @@ export default function Home() {
     }
   };
 
+  const handleSaveResults = async () => {
+    if (!results || !results.gradedResults) {
+      toast.error("No results to save!");
+      return;
+    }
+
+    try {
+      await axios.post("http://localhost:3001/api/save-results", {
+        examId: results.examData.exam_info.exam_id,
+        students: results.gradedResults,
+      });
+
+      toast.success("Results saved successfully!");
+    } catch (error) {
+      console.error("Error saving results:", error);
+      toast.error("Failed to save results.");
+    }
+  };
+
+  const handleExportToExcel = () => {
+    if (!results || !results.gradedResults) {
+      toast.error("No results to export!");
+      return;
+    }
+
+    const examInfo = results.examData.exam_info;
+    const worksheetData = [];
+
+    // Add Exam Title & ID only once at the top
+    worksheetData.push(["Exam Title:", examInfo?.title || "N/A"]);
+    worksheetData.push(["Exam ID:", examInfo?.exam_id || "N/A"]);
+    worksheetData.push([]); // Empty row for spacing
+
+    // Filter out duplicate students based on CIN
+    const uniqueStudents = results.gradedResults.filter(
+      (student, index, self) => {
+        const firstIndex = self.findIndex(
+          (s) => s.student_info?.CIN === student.student_info?.CIN
+        );
+        return index === firstIndex; // Keep only the first occurrence
+      }
+    );
+
+    uniqueStudents.forEach((student) => {
+      // Add Student Information
+      worksheetData.push(["Student Name", "CIN", "Class", "Score"]);
+      worksheetData.push([
+        student.student_info?.Name || "N/A",
+        student.student_info?.CIN || "N/A",
+        student.student_info?.Class || "N/A",
+        student.score,
+      ]);
+      worksheetData.push([]); // Empty row
+      worksheetData.push([]); // Empty row
+
+      // Add Question Details
+      worksheetData.push([
+        "Question",
+        "Chosen Options",
+        "Correct Options",
+        "Is Correct",
+      ]);
+      student.answers.forEach((answer) => {
+        worksheetData.push([
+          `Q${answer.question}`,
+          answer.selectedChoices.join(", ") || "No Answer",
+          answer.correctAnswers.join(", "),
+          answer.isCorrect ? "✅" : "❌",
+        ]);
+      });
+
+      worksheetData.push([]); // Space before next student
+    });
+
+    // Create Excel Sheet
+    const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Exam Results");
+
+    // Apply Styles
+    const headerStyle = {
+      font: { bold: true, color: { rgb: "FFFFFF" } },
+      fill: { fgColor: { rgb: "4F81BD" } }, // Blue background
+      alignment: { horizontal: "center", vertical: "center" },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+    };
+
+    const dataStyle = {
+      font: { bold: false, color: { rgb: "000000" } },
+      alignment: { horizontal: "left", vertical: "center" },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+    };
+
+    const range = XLSX.utils.decode_range(worksheet["!ref"]);
+    for (let row = range.s.r; row <= range.e.r; row++) {
+      for (let col = range.s.c; col <= range.e.c; col++) {
+        const cellRef = XLSX.utils.encode_cell({ r: row, c: col });
+        if (worksheet[cellRef]) {
+          if (row === 0 || row === 1 || row === 4 || row === 7) {
+            worksheet[cellRef].s = headerStyle;
+          } else {
+            worksheet[cellRef].s = dataStyle;
+          }
+        }
+      }
+    }
+
+    // Auto-fit columns for better readability
+    worksheet["!cols"] = [
+      { wch: 20 }, // Exam Title
+      { wch: 15 }, // Exam ID
+      { wch: 25 }, // Student Name
+      { wch: 15 }, // CIN
+      { wch: 10 }, // Class
+      { wch: 10 }, // Score
+      { wch: 20 }, // Question
+      { wch: 20 }, // Chosen Options
+      { wch: 20 }, // Correct Options
+      { wch: 10 }, // Is Correct
+    ];
+
+    // Download Excel File
+    XLSX.writeFile(workbook, `exam_results_${examInfo?.exam_id || "N/A"}.xlsx`);
+    toast.success("Results exported to Excel!");
+  };
+
+  const handleExportStudentInfo = () => {
+    if (!results || !results.gradedResults) {
+      toast.error("No results to export!");
+      return;
+    }
+
+    const examInfo = results.examData.exam_info;
+
+    // Filter out duplicate students based on CIN
+    const uniqueStudents = results.gradedResults.filter(
+      (student, index, self) => {
+        const firstIndex = self.findIndex(
+          (s) => s.student_info?.CIN === student.student_info?.CIN
+        );
+        return index === firstIndex; // Keep only the first occurrence
+      }
+    );
+
+    // Table headers
+    const worksheetData = [
+      ["Exam Title", "Exam ID", "Student Name", "CIN", "Class", "Score"],
+    ];
+
+    // Add student data (each student on a single line)
+    uniqueStudents.forEach((student) => {
+      worksheetData.push([
+        examInfo?.title || "N/A",
+        examInfo?.exam_id || "N/A",
+        student.student_info?.Name || "N/A",
+        student.student_info?.CIN || "N/A",
+        student.student_info?.Class || "N/A",
+        student.score,
+      ]);
+    });
+
+    // Create worksheet and apply styles
+    const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+
+    // Style headers (bold & background color)
+    const headerStyle = {
+      font: { bold: true, color: { rgb: "FFFFFF" } },
+      fill: { fgColor: { rgb: "4F81BD" } }, // Blue background
+      alignment: { horizontal: "center", vertical: "center" },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+    };
+
+    // Style data rows
+    const dataStyle = {
+      font: { bold: false, color: { rgb: "000000" } },
+      alignment: { horizontal: "left", vertical: "center" },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+    };
+
+    // Apply header style
+    const headerRange = XLSX.utils.decode_range(worksheet["!ref"]);
+    for (let col = headerRange.s.c; col <= headerRange.e.c; col++) {
+      const cellRef = XLSX.utils.encode_cell({ r: 0, c: col });
+      if (worksheet[cellRef]) {
+        worksheet[cellRef].s = headerStyle;
+      }
+    }
+
+    // Apply data style
+    for (let row = 1; row <= uniqueStudents.length; row++) {
+      for (let col = headerRange.s.c; col <= headerRange.e.c; col++) {
+        const cellRef = XLSX.utils.encode_cell({ r: row, c: col });
+        if (worksheet[cellRef]) {
+          worksheet[cellRef].s = dataStyle;
+        }
+      }
+    }
+
+    // Auto-fit columns for better readability
+    worksheet["!cols"] = [
+      { wch: 20 }, // Exam Title
+      { wch: 15 }, // Exam ID
+      { wch: 25 }, // Student Name
+      { wch: 15 }, // CIN
+      { wch: 10 }, // Class
+      { wch: 10 }, // Score
+    ];
+
+    // Create Workbook
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Student Info");
+
+    // Download Excel File
+    XLSX.writeFile(workbook, `student_info_${examInfo?.exam_id || "N/A"}.xlsx`);
+    toast.success("Styled Student Info exported!");
+  };
+
 
   return (
     <div className="flex justify-center min-h-screen p-6 bg-gray-50">
@@ -373,126 +612,191 @@ export default function Home() {
                 Student Results
               </TypographyH2>
               <div className="mt-6 space-y-6">
-                {results.gradedResults.map((student, index) => (
-                  <div
-                    key={index}
-                    className="p-6 bg-gray-50 rounded-lg border border-gray-100"
-                  >
-                    <h3 className="text-xl font-semibold text-blue-600">
-                      Student {index + 1}
-                    </h3>
-                    <div className="mt-4 space-y-2 text-gray-700">
-                      <p>
-                        <strong>Full Name:</strong>{" "}
-                        {student.student_info?.Name || "N/A"}
-                      </p>
-                      <p>
-                        <strong>Class:</strong>{" "}
-                        {student.student_info?.Class || "N/A"}
-                      </p>
-                      <p>
-                        <strong>CIN:</strong>{" "}
-                        {student.student_info?.CIN || "N/A"}
-                      </p>
-                      <p>
-                        <strong>Score:</strong>{" "}
-                        <span className="font-semibold text-green-600">
-                          {student.score} / {maxScore}
-                        </span>
-                      </p>
-                    </div>
+                {results.gradedResults
+                  .filter((student, index, self) => {
+                    // Filter out duplicates based on student CIN (or another unique identifier)
+                    const firstIndex = self.findIndex(
+                      (s) => s.student_info?.CIN === student.student_info?.CIN
+                    );
+                    return index === firstIndex; // Keep only the first occurrence
+                  })
+                  .map((student, index) => (
+                    <div
+                      key={index}
+                      className="p-6 bg-gray-50 rounded-lg border border-gray-100"
+                    >
+                      <h3 className="text-xl font-semibold text-blue-600">
+                        Student {index + 1}
+                      </h3>
+                      <div className="mt-4 space-y-2 text-gray-700">
+                        <p>
+                          <strong>Full Name:</strong>{" "}
+                          {student.student_info?.Name || "N/A"}
+                        </p>
+                        <p>
+                          <strong>Class:</strong>{" "}
+                          {student.student_info?.Class || "N/A"}
+                        </p>
+                        <p>
+                          <strong>CIN:</strong>{" "}
+                          {student.student_info?.CIN || "N/A"}
+                        </p>
+                        <p>
+                          <strong>Score:</strong>{" "}
+                          <span className="font-semibold text-green-600">
+                            {student.score} / {maxScore}
+                          </span>
+                        </p>
+                      </div>
 
-                    <h3 className="mt-6 text-lg font-semibold text-gray-700">
-                      Answers:
-                    </h3>
-                    <ul className="mt-4 space-y-4">
-                      {student.answers.map((ans, i) => (
-                        <li
-                          key={i}
-                          className="p-4 bg-white rounded-lg border border-gray-200"
-                        >
-                          <p>
-                            <strong>Q{ans.question}:</strong>{" "}
-                            <span
-                              className={
-                                ans.isCorrect
-                                  ? "text-green-600"
-                                  : "text-red-600"
-                              }
-                            >
-                              {ans.selectedChoices.join(", ") || "No answer"}
-                            </span>
-                          </p>
-                          {ans.isCorrect ? (
-                            <p className="text-green-500 mt-2">✔ Correct</p>
-                          ) : (
-                            <div className="mt-2">
-                              <p className="text-red-500">✘ Incorrect</p>
-                              <p className="text-gray-500">
-                                <strong>Correct Answer:</strong>{" "}
-                                {ans.correctAnswers.join(", ")}
-                              </p>
-                            </div>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button className="mt-4 bg-blue-500 hover:bg-blue-600 text-white">
-                          View Answers
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent className="max-w-2xl">
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>
-                            Answers for{" "}
-                            {student.student_info?.Name || "Student"}
-                          </AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Review the student's answers along with the correct
-                            ones.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-
-                        <div className="max-h-80 overflow-y-auto space-y-4 p-2">
-                          {student.answers.map((ans, i) => (
-                            <div
-                              key={i}
-                              className="p-4 bg-gray-100 rounded-lg border border-gray-200"
-                            >
-                              <p>
-                                <strong>Q{i + 1}:</strong> {ans.question}
-                              </p>
-                              <p
+                      <h3 className="mt-6 text-lg font-semibold text-gray-700">
+                        Answers:
+                      </h3>
+                      <ul className="mt-4 space-y-4">
+                        {student.answers.map((ans, i) => (
+                          <li
+                            key={i}
+                            className="p-4 bg-white rounded-lg border border-gray-200"
+                          >
+                            <p>
+                              <strong>Q{ans.question}:</strong>{" "}
+                              <span
                                 className={
                                   ans.isCorrect
-                                    ? "text-green-600 font-medium"
-                                    : "text-red-600 font-medium"
+                                    ? "text-green-600"
+                                    : "text-red-600"
                                 }
                               >
-                                <strong>Student's Answer:</strong>{" "}
-                                {ans.selectedChoices?.join(", ") || "No answer"}
-                              </p>
-                              {!ans.isCorrect && (
+                                {ans.selectedChoices.join(", ") || "No answer"}
+                              </span>
+                            </p>
+                            {ans.isCorrect ? (
+                              <p className="text-green-500 mt-2">✔ Correct</p>
+                            ) : (
+                              <div className="mt-2">
+                                <p className="text-red-500">✘ Incorrect</p>
                                 <p className="text-gray-500">
                                   <strong>Correct Answer:</strong>{" "}
-                                  {ans.correctAnswers?.join(", ")}
+                                  {ans.correctAnswers.join(", ")}
                                 </p>
-                              )}
-                            </div>
-                          ))}
-                        </div>
+                              </div>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
 
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Close</AlertDialogCancel>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                ))}
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button className="mt-4 bg-blue-500 hover:bg-blue-600 text-white">
+                            View Answers
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent className="max-w-2xl">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              Answers for{" "}
+                              {student.student_info?.Name || "Student"}
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Review the student's answers along with the
+                              correct ones.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+
+                          <div className="max-h-80 overflow-y-auto space-y-4 p-2">
+                            {student.answers.map((ans, i) => (
+                              <div
+                                key={i}
+                                className="p-4 bg-gray-100 rounded-lg border border-gray-200"
+                              >
+                                <p>
+                                  <strong>Q{i + 1}:</strong> {ans.question}
+                                </p>
+                                <p
+                                  className={
+                                    ans.isCorrect
+                                      ? "text-green-600 font-medium"
+                                      : "text-red-600 font-medium"
+                                  }
+                                >
+                                  <strong>Student's Answer:</strong>{" "}
+                                  {ans.selectedChoices?.join(", ") ||
+                                    "No answer"}
+                                </p>
+                                {!ans.isCorrect && (
+                                  <p className="text-gray-500">
+                                    <strong>Correct Answer:</strong>{" "}
+                                    {ans.correctAnswers?.join(", ")}
+                                  </p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Close</AlertDialogCancel>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  ))}
               </div>
+            </div>
+          )}
+
+          {/* New Card for Exam Title, Exam ID, and Statistics Link */}
+          {results?.examData && (
+            <div className="mt-8 bg-gradient-to-r from-blue-500 to-blue-600 p-6 rounded-lg shadow-lg text-white">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h2 className="text-2xl font-bold">
+                    {results.examData.exam_info.title || "N/A"}
+                  </h2>
+                  <p className="text-sm text-blue-100">
+                    Exam ID: {results.examData.exam_info.exam_id || "N/A"}
+                  </p>
+                </div>
+                <Button
+                  onClick={() => {
+                    // Navigate to the statistics page for this exam
+                    // Replace this with your actual navigation logic
+                    console.log(
+                      "Navigating to statistics page for exam:",
+                      results.examData.exam_info.exam_id
+                    );
+                  }}
+                  className="flex items-center bg-white text-blue-600 hover:bg-blue-50 font-semibold py-2 px-4 rounded-lg transition-all"
+                >
+                  <span>Save and View Statistics</span>
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Buttons for Save and Export */}
+          {results?.gradedResults && results.gradedResults.length > 0 && (
+            <div className="flex space-x-4 mt-6">
+              <Button
+                onClick={handleSaveResults}
+                className="bg-green-600 text-white"
+              >
+                Save Results
+              </Button>
+
+              <Button
+                onClick={handleExportToExcel}
+                className="bg-blue-600 text-white"
+              >
+                Export Full Report (With Questions)
+              </Button>
+
+              <Button
+                onClick={handleExportStudentInfo}
+                className="bg-yellow-600 text-white"
+              >
+                Export Student Info Only
+              </Button>
             </div>
           )}
         </CardContent>

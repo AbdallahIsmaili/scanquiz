@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import axios from "axios";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -102,59 +103,45 @@ const DashboardPage: FC = () => {
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 
+
+
   useEffect(() => {
-    fetch("http://localhost:3001/api/quizzes", {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-    })
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
+    const fetchQuizzes = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        console.log("Token:", token); // Log the token
+        const res = await axios.get("http://localhost:3001/api/quizzes", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        console.log("Quizzes response:", res.data); // Log the response
+        setQuizzes(res.data);
+
+        // Auto-select the first quiz if none is selected
+        if (res.data.length > 0 && !selectedQuiz) {
+          setSelectedQuiz(res.data[0].id.toString());
         }
-        return res.json();
-      })
-      .then((data) => setQuizzes(data))
-      .catch((err) => setError(err.message));
+      } catch (err) {
+        console.error("Error fetching quizzes:", err);
+        setError(err.response?.data?.message || "Failed to fetch quizzes");
+      }
+    };
+
+    fetchQuizzes();
   }, []);
 
-  const fetchQuizData = async (
-    url: string,
-    setData: (data: any) => void,
-    setError: (error: string) => void
-  ) => {
-    try {
-      const res = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-
-      if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`);
-      }
-
-      const data = await res.json();
-      setData(data);
-    } catch (err: unknown) {
-      console.error("Error fetching data:", err);
-
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("An unknown error occurred");
-      }
-    }
-  };
-
-  // Use Effects
+  // Fetch quiz questions when a quiz is selected
   useEffect(() => {
     if (selectedQuiz) {
       const url = `http://localhost:3001/api/quizzes/${selectedQuiz}/questions`;
       fetchQuizData(url, setQuestions, setError);
     }
-  }, [selectedQuiz, questionText]); // Ensure consistent dependencies array
+  }, [selectedQuiz]); // Removed questionText from dependencies
 
+  
+
+  // Fetch quiz details when updating
   useEffect(() => {
     if (isUpdateQuizOpen && selectedQuiz) {
       const url = `http://localhost:3001/api/quizzes/${selectedQuiz}`;
@@ -162,9 +149,30 @@ const DashboardPage: FC = () => {
     }
   }, [isUpdateQuizOpen, selectedQuiz]);
 
+  // Fetch helper function
+  const fetchQuizData = async (
+    url: string,
+    setData: (data: any) => void,
+    setError: (error: string) => void
+  ) => {
+    try {
+      const res = await axios.get(url, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+      setData(res.data);
+    } catch (err) {
+      console.error("Error fetching data:", err);
+      setError(err.response?.data?.message || "An unknown error occurred");
+    }
+  };
+
+  // Handle quiz selection change
   const handleSelectChange = (value: string) => {
     setSelectedQuiz(value);
   };
+
 
   const handleTextUpdate = (newText: string) => {
     setQuestionText(newText);
@@ -253,7 +261,6 @@ const DashboardPage: FC = () => {
   };
 
   const columns: ColumnDef<Question>[] = [
-    
     {
       accessorKey: "question_text",
       header: "Question Text",
@@ -718,29 +725,29 @@ const DashboardPage: FC = () => {
   });
 
   if (typeof window !== "undefined") {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        forbidden();
-      } else {
-        try {
-          const decoded: any = jwtDecode(token);
-          if (!decoded.exp) {
-            forbidden()
-          } else {
-            const currentTime = Date.now() / 1000;
-            if (decoded.exp < currentTime) {
-              logout();
-              forbidden()
-            }
+    const token = localStorage.getItem("token");
+    if (!token) {
+      forbidden();
+    } else {
+      try {
+        const decoded: any = jwtDecode(token);
+        if (!decoded.exp) {
+          forbidden();
+        } else {
+          const currentTime = Date.now() / 1000;
+          if (decoded.exp < currentTime) {
+            logout();
+            forbidden();
           }
-        } catch (err) {
-          console.error("Error decoding token:", err);
-          logout();
-          forbidden()
         }
+      } catch (err) {
+        console.error("Error decoding token:", err);
+        logout();
+        forbidden();
       }
     }
-    
+  }
+
   return (
     <>
       <div className="flex justify-between items-center gap-4 mx-auto text-left my-4">

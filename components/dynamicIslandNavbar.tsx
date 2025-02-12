@@ -41,7 +41,6 @@ const DynamicIslandNavbar = ({ user }) => {
 
   const handleLogout = () => {
     logout();
-    toast.success("You have successfully logged out.");
   };
 
   return (

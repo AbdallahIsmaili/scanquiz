@@ -1,37 +1,37 @@
-import {jwtDecode} from "jwt-decode"; // Ensure proper import
-import { setLogoutTimeout } from "./auth"; // Import the new function
+import { jwtDecode } from "jwt-decode";
 
-export const logout = () => {
-  // Remove the token from local storage
-  localStorage.removeItem("token");
-  // Redirect to the login page
+// Function to get a cookie by name
+const getCookie = (name: string): string | null => {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie.match(new RegExp(`(^| )${name}=([^;]+)`));
+  return match ? match[2] : null;
+};
+
+// Function to log out
+export const logout = (): void => {
+  document.cookie = `token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
   window.location.href = "/";
 };
 
-export const isAuthenticated = () => {
-  const token = localStorage.getItem("token");
+// Function to check if the user is authenticated (client-side only)
+export const isAuthenticated = (): any | null => {
+  const token = getCookie("token");
   if (!token) return null;
 
   try {
-    const decoded: any = jwtDecode(token); // Specify 'any' type for flexibility
-
-    // Check if token expiration exists and if the token is expired
-    const currentTime = Date.now() / 1000;
-    if (!decoded.exp || decoded.exp < currentTime) {
-      logout(); // Log out if the token is expired
+    const decoded: any = jwtDecode(token);
+    if (!decoded.exp || decoded.exp < Date.now() / 1000) {
+      logout(); // Logout if token is expired
       return null;
     }
-
     return decoded;
-  } catch (err) {
-    console.error("Error decoding token:", err);
+  } catch (error) {
+    console.error("Error decoding token:", error);
     return null;
   }
 };
 
-// Call setLogoutTimeout after login or registration
-export const loginUser = (token: string) => {
-  // Properly type the token parameter
-  localStorage.setItem("token", token);
-  setLogoutTimeout(); // Set the timeout for automatic logout
+// Function to store token in cookies
+export const setToken = (token: string): void => {
+  document.cookie = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60}`;
 };

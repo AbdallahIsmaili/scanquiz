@@ -131,6 +131,15 @@ const QuestionActions = ({ onDelete }) => (
 );
 
 const QuizForm = ({ title, questions, setTitle, setQuestions }) => {
+  const [questionType, setQuestionType] = useState<string | null>(null);
+  const [isAlertDialogOpen, setIsAlertDialogOpen] = useState(false);
+  const [dialogInput, setDialogInput] = useState("");
+
+  const handleAddQuestion = (type: string) => {
+    setQuestionType(type);
+    setIsAlertDialogOpen(true);
+  };
+
   const handleDeleteQuestion = (index: number) => {
     setQuestions(questions.filter((_, i) => i !== index));
   };
@@ -146,6 +155,7 @@ const QuizForm = ({ title, questions, setTitle, setQuestions }) => {
     };
     setQuestions([...questions, newQuestion]);
   };
+
   const handleQuestionChange = (index: number, value: string) => {
     const newQuestions = [...questions];
     newQuestions[index].text = value;
@@ -161,6 +171,7 @@ const QuizForm = ({ title, questions, setTitle, setQuestions }) => {
     newQuestions[questionIndex].choices[choiceIndex].text = value;
     setQuestions(newQuestions);
   };
+
   const handleCorrectAnswerToggle = (
     questionIndex: number,
     choiceIndex: number
@@ -538,6 +549,63 @@ const CreateQuizPage: React.FC = () => {
     }
   };
 
+  
+  // const handleConfirmSubmit = async () => {
+  //   const token = localStorage.getItem("token");
+
+  //   if (!token) {
+  //     toast.error("Authorization token not found. Please log in again.");
+  //     return;
+  //   }
+
+  //   toast.loading("Generating OMR sheet and saving quiz...", {
+  //     id: "save-quiz",
+  //   });
+
+  //   try {
+  //     // ✅ Step 1: Generate OMR Sheet and get `exam_id`
+  //     const omrResponse = await fetch("/api/generate-omr", {
+  //       method: "POST",
+  //       headers: { "Content-Type": "application/json" },
+  //       body: JSON.stringify({ title, questions }),
+  //     });
+
+  //     if (!omrResponse.ok) {
+  //       toast.error("Error generating OMR sheet", { id: "save-quiz" });
+  //       return;
+  //     }
+
+  //     const { exam_id, omrSheetUrl } = await omrResponse.json();
+  //     console.log("Generated Exam ID:", exam_id);
+
+  //     // ✅ Step 2: Send `exam_id` to backend
+  //     const response = await fetch("http://localhost:3001/save-quiz", {
+  //       method: "POST",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //         Authorization: `Bearer ${token}`,
+  //       },
+  //       body: JSON.stringify({ title, questions, exam_id }),
+  //     });
+
+  //     if (response.ok) {
+  //       toast.success("Quiz saved successfully!", { id: "save-quiz" });
+
+  //       // ✅ Open OMR sheet after successful save
+  //       window.open(omrSheetUrl, "_blank");
+  //     } else {
+  //       const errorMessage = await response.text();
+  //       console.error("Error response:", errorMessage);
+  //       toast.error(`Error saving quiz: ${errorMessage}`, { id: "save-quiz" });
+  //     }
+  //   } catch (error) {
+  //     console.error("Error:", error);
+  //     toast.error("Something went wrong. Please try again.", {
+  //       id: "save-quiz",
+  //     });
+  //   }
+  // };
+
   const handleConfirmSubmit = async () => {
     const token = localStorage.getItem("token");
 
@@ -551,7 +619,7 @@ const CreateQuizPage: React.FC = () => {
     });
 
     try {
-      // ✅ Step 1: Generate OMR Sheet and get `exam_id`
+      // Step 1: Generate OMR Sheet and get exam_id
       const omrResponse = await fetch("/api/generate-omr", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -566,20 +634,32 @@ const CreateQuizPage: React.FC = () => {
       const { exam_id, omrSheetUrl } = await omrResponse.json();
       console.log("Generated Exam ID:", exam_id);
 
-      // ✅ Step 2: Send `exam_id` to backend
+      const formattedQuestions = questions.map((q) => ({
+        question_text: q.text,
+        question_type: q.type,
+        box_size: q.type === "typing-box" ? q.boxSize : null,
+        choices: q.choices
+          ? q.choices.map((c) => ({
+              choice_text: c.text,
+              is_correct: c.isCorrect,
+            }))
+          : [],
+      }));
+
       const response = await fetch("http://localhost:3001/save-quiz", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ title, questions, exam_id }),
+        body: JSON.stringify({ title, questions: formattedQuestions, exam_id }),
       });
+
 
       if (response.ok) {
         toast.success("Quiz saved successfully!", { id: "save-quiz" });
 
-        // ✅ Open OMR sheet after successful save
+        // Open OMR sheet after successful save
         window.open(omrSheetUrl, "_blank");
       } else {
         const errorMessage = await response.text();

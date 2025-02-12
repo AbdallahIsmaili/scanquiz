@@ -48,34 +48,22 @@ const QuizSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters").max(50),
   questions: z
     .array(
-      z.union([
-        z.object({
-          type: z.literal("multiple-choice"),
-          text: z.string().min(5, "Question text too short"),
-          choices: z
-            .array(
-              z.object({
-                text: z.string().min(1, "Choice text required"),
-                isCorrect: z.boolean(),
-              })
-            )
-            .min(2, "At least 2 choices required")
-            .refine(
-              (choices) => choices.some((c) => c.isCorrect),
-              "At least one correct answer required"
-            ),
-        }),
-        z.object({
-          type: z.literal("typing-box"),
-          text: z.string().min(5, "Question text too short"),
-          boxSize: z
-            .string()
-            .refine(
-              (val) => !isNaN(Number(val)) && Number(val) > 0,
-              "Invalid box size"
-            ),
-        }),
-      ])
+      z.object({
+        type: z.literal("multiple-choice"),
+        text: z.string().min(5, "Question text too short"),
+        choices: z
+          .array(
+            z.object({
+              text: z.string().min(1, "Choice text required"),
+              isCorrect: z.boolean(),
+            })
+          )
+          .length(4, "Exactly 4 choices required") // ← Modification ici
+          .refine(
+            (choices) => choices.some((c) => c.isCorrect),
+            "At least one correct answer required"
+          ),
+      })
     )
     .min(1, "At least one question required")
     .refine((questions) => {
@@ -91,7 +79,9 @@ type PreviewContextType = {
 //const PreviewContext = createContext<PreviewContextType | null>(null);
 
 const PreviewContext = createContext<PreviewContextType>({
-  generatePDFs: () => Promise.reject("Context not initialized"),
+  generatePDFs: async () => {
+    return { quizBlob: new Blob(), answerBlob: new Blob() };
+  },
 });
 
 const ConfirmationDialog = ({
@@ -154,43 +144,16 @@ const QuizForm = ({ title, questions, setTitle, setQuestions }) => {
     setQuestions(questions.filter((_, i) => i !== index));
   };
 
-
   const handleAddMultipleChoiceQuestion = () => {
-    // Convertir dialogInput en nombre
-    const numChoices = parseInt(dialogInput, 10);
-    if (isNaN(numChoices) || numChoices < 2 || numChoices > 5) {
-      toast.error("Please enter a number between 2 and 5");
-      setDialogInput("");
-      return;
-    }
     const newQuestion = {
       type: "multiple-choice",
       text: "",
-      choices: Array.from({ length: numChoices }, () => ({
+      choices: Array.from({ length: 4 }, () => ({
         text: "",
         isCorrect: false,
       })),
     };
     setQuestions([...questions, newQuestion]);
-    setIsAlertDialogOpen(false);
-    setDialogInput("");
-  };
-
-  const handleAddTypingBoxQuestion = () => {
-    const boxSize = parseInt(dialogInput, 10);
-    if (isNaN(boxSize) || boxSize < 1 || boxSize > 10) {
-      toast.error("Please enter a valid number between 1 and 10");
-      setDialogInput("");
-      return;
-    }
-    const newQuestion = {
-      type: "typing-box",
-      text: "",
-      boxSize: boxSize.toString(),
-    };
-    setQuestions([...questions, newQuestion]);
-    setIsAlertDialogOpen(false);
-    setDialogInput("");
   };
 
   const handleQuestionChange = (index: number, value: string) => {
@@ -226,7 +189,6 @@ const QuizForm = ({ title, questions, setTitle, setQuestions }) => {
       </CardHeader>
 
       <CardContent className="space-y-6">
-        {/* Input pour le titre du quiz */}
         <Input
           placeholder="Quiz Title"
           value={title}
@@ -241,91 +203,39 @@ const QuizForm = ({ title, questions, setTitle, setQuestions }) => {
               <QuestionActions onDelete={() => handleDeleteQuestion(index)} />
             </div>
 
-            {question.type === "multiple-choice" && (
-              <>
-                <Input
-                  placeholder={`Enter Question ${index + 1}`}
-                  value={question.text}
-                  onChange={(e) => handleQuestionChange(index, e.target.value)}
-                />
-
-                {question.choices.map((choice: any, choiceIndex: number) => (
-                  <div
-                    key={choiceIndex}
-                    className="flex items-center mt-2 gap-2"
-                  >
-                    <Input
-                      placeholder={`Enter Choice ${choiceIndex + 1}`}
-                      value={choice.text}
-                      onChange={(e) =>
-                        handleChoiceChange(index, choiceIndex, e.target.value)
-                      }
-                    />
-                    <Checkbox
-                      checked={choice.isCorrect}
-                      onCheckedChange={() =>
-                        handleCorrectAnswerToggle(index, choiceIndex)
-                      }
-                    />
-                  </div>
-                ))}
-              </>
-            )}
-
-            {question.type === "typing-box" && (
+            <>
               <Input
                 placeholder={`Enter Question ${index + 1}`}
                 value={question.text}
                 onChange={(e) => handleQuestionChange(index, e.target.value)}
-                className="mt-2"
               />
-            )}
+
+              {question.choices.map((choice: any, choiceIndex: number) => (
+                <div key={choiceIndex} className="flex items-center mt-2 gap-2">
+                  <Input
+                    placeholder={`Enter Choice ${choiceIndex + 1}`}
+                    value={choice.text}
+                    onChange={(e) =>
+                      handleChoiceChange(index, choiceIndex, e.target.value)
+                    }
+                  />
+                  <Checkbox
+                    checked={choice.isCorrect}
+                    onCheckedChange={() =>
+                      handleCorrectAnswerToggle(index, choiceIndex)
+                    }
+                  />
+                </div>
+              ))}
+            </>
           </div>
         ))}
 
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => handleAddQuestion("multiple-choice")}
-          >
-            Add Multiple Choice
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => handleAddQuestion("typing-box")}
-          >
-            Add Typing Box
+          <Button variant="outline" onClick={handleAddMultipleChoiceQuestion}>
+            Add Question (4 choices)
           </Button>
         </div>
-
-        {/* Fenêtre modale de confirmation pour ajouter une question */}
-        <ConfirmationDialog
-          open={isAlertDialogOpen}
-          onOpenChange={setIsAlertDialogOpen}
-          onConfirm={
-            questionType === "multiple-choice"
-              ? handleAddMultipleChoiceQuestion
-              : handleAddTypingBoxQuestion
-          }
-          title={
-            questionType === "multiple-choice"
-              ? "Number of Choices"
-              : "Box Size Configuration"
-          }
-          description={
-            <Input
-              type={questionType === "multiple-choice" ? "number" : "number"}
-              placeholder={
-                questionType === "multiple-choice"
-                  ? "Enter number of choices (2-5)"
-                  : "Enter box size (1-10 lines)"
-              }
-              value={dialogInput}
-              onChange={(e) => setDialogInput(e.target.value)}
-              className="mt-2"
-            />
-          }
-        />
       </CardContent>
     </Card>
   );
@@ -346,64 +256,23 @@ const QuizPreview = ({
     answerUrl: null,
   });
 
-
-
-  
   const handlePreview = async () => {
     try {
       toast.loading("Generating preview...", { id: "preview-loading" });
 
-      // ✅ Ensure previewContext is available
-      if (!previewContext) {
-        toast.error("Preview context not available", { id: "preview-loading" });
-        return;
-      }
-
-      // ✅ Step 1: Generate Quiz PDF (As before)
       const { quizBlob, answerBlob } = await previewContext.generatePDFs();
-      const quizUrl = URL.createObjectURL(quizBlob); // Keep the quiz generation as before
-      let answerUrl = URL.createObjectURL(answerBlob); // Default answer sheet preview
 
-      // ✅ Step 2: Generate OMR Answer Sheet
-      const omrResponse = await fetch("/api/generate-omr", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, questions }),
-      });
-
-      if (omrResponse.ok) {
-        const { omrSheetUrl } = await omrResponse.json();
-        console.log("Generated OMR Sheet:", omrSheetUrl);
-        answerUrl = omrSheetUrl; // ✅ Update answer sheet preview
-      } else {
-        toast.error("Error generating answer sheet, using previous version.", {
-          id: "preview-loading",
-        });
-      }
-
-      // ✅ Step 3: Update Both Previews
       setPreviewData({
-        quizUrl, // ✅ Keep the quiz preview as before
-        answerUrl, // ✅ Update only the answer sheet
+        quizUrl: URL.createObjectURL(quizBlob),
+        answerUrl: URL.createObjectURL(answerBlob),
       });
 
       setIsPreviewModalOpen(true);
       toast.success("Preview updated!", { id: "preview-loading" });
     } catch (error) {
-      console.error("Error generating preview:", error);
       toast.error("Error updating preview", { id: "preview-loading" });
     }
   };
-
-
-
-
-
-
-
-
-  
-
 
   const generateAnswerSheet = async () => {
     try {
@@ -429,9 +298,6 @@ const QuizPreview = ({
       console.error("Error:", error);
     }
   };
-
-
-
 
   return (
     <Card className="sticky top-4 col-span-1">
@@ -473,9 +339,9 @@ const QuizPreview = ({
             Save
           </Button>
 
-          {/* <Button className="w-full" onClick={generateAnswerSheet}>
+          {/*<Button className="w-full" onClick={generateAnswerSheet}>
             Generate Answer Sheet
-          </Button> */}
+          </Button>*/}
 
           <Button
             className="w-full"
@@ -658,128 +524,24 @@ const CreateQuizPage: React.FC = () => {
         quizDoc.text(`Page ${i} / ${pageCount}`, 105, 285, { align: "center" });
       }
 
-      // Feuille de réponses
-      const answerSheet = new jsPDF();
-
-      // En-tête centré
-      answerSheet.setFontSize(16);
-      answerSheet.setFont("helvetica", "bold");
-      answerSheet.text(title, 105, 20, { align: "center" });
-      answerSheet.text("FEUILLE DE RÉPONSES", 105, 30, { align: "center" });
-
-      // Informations Étudiant
-      answerSheet.setFontSize(10);
-      answerSheet.setFont("helvetica", "bold");
-
-      const studentFields1 = [
-        { label: "Family name:", x: 20, y: 40 },
-        { label: "First name:", x: 20, y: 48 },
-        { label: "CIN:", x: 110, y: 40 },
-        { label: "Class:", x: 110, y: 48 },
-      ];
-
-      studentFields1.forEach((field) => {
-        answerSheet.text(field.label, field.x, field.y);
+      // Génération de la feuille de réponses via l'API
+      const omrResponse = await fetch("/api/generate-omr", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, questions }),
       });
 
-      answerSheet.setLineWidth(0.5);
-      answerSheet.line(20, 50, 190, 50);
-      answerSheet.text(
-        "Réponses (Ne rien écrire en dehors des cases)",
-        105,
-        55,
-        {
-          align: "center",
-        }
-      );
-
-      // Configuration dynamique
-      const maxChoices = questions.reduce(
-        (max, q) =>
-          q.type === "multiple-choice" ? Math.max(max, q.choices.length) : max,
-        0
-      );
-
-      // Configuration du tableau
-      (answerSheet as any).autoTable({
-        startY: 60,
-        head: [
-          [
-            "Question",
-            ...Array.from({ length: maxChoices }, (_, i) =>
-              String.fromCharCode(65 + i)
-            ),
-          ],
-        ],
-        body: questions
-          .filter((q) => q.type === "multiple-choice")
-          .map((q, index) => [
-            `Q${index + 1}`,
-            ...Array.from({ length: maxChoices }, (_, i) =>
-              i < q.choices.length ? "" : ""
-            ),
-          ]),
-        styles: {
-          fontSize: 10,
-          cellPadding: 3,
-          valign: "middle",
-          halign: "center",
-        },
-        headStyles: {
-          fillColor: [41, 128, 185], // Couleur bleue pour l'en-tête
-          textColor: 255,
-          fontStyle: "bold",
-        },
-        bodyStyles: {
-          textColor: 0,
-          fillColor: 255, // Fond blanc pour les lignes
-        },
-        columnStyles: {
-          0: {
-            // Style colonne "Question"
-            halign: "left",
-            cellWidth: 25,
-            fontStyle: "bold",
-          },
-          // Style pour les colonnes de réponses
-          ...Object.fromEntries(
-            Array.from({ length: maxChoices }).map((_, i) => [
-              i + 1,
-              {
-                cellWidth: 15,
-                halign: "center",
-              },
-            ])
-          ),
-        },
-        theme: "grid", // Théma simple avec bordures
-        margin: { left: 20 },
-      });
-
-      // Après avoir généré le tableau dans la feuille de réponses
-      const answerPageCount = answerSheet.getNumberOfPages();
-      for (let i = 1; i <= answerPageCount; i++) {
-        answerSheet.setPage(i);
-        answerSheet.text(
-          `Page ${i} / ${answerPageCount}`,
-          105,
-          285, // Position Y identique au quiz
-          { align: "center" }
-        );
+      if (!omrResponse.ok) {
+        throw new Error("Failed to generate answer sheet");
       }
 
-      // Ajouter une limite de pages
-      if (quizDoc.getNumberOfPages() > 10) {
-        toast.error("Quiz too long, maximum 10 pages");
-        throw new Error("Page limit exceeded");
-      }
-
-      const quizBlob = quizDoc.output("blob");
-      const answerBlob = answerSheet.output("blob");
+      const { omrSheetUrl } = await omrResponse.json();
+      const answerResponse = await fetch(omrSheetUrl);
+      const answerBlob = await answerResponse.blob();
 
       return {
         quizBlob: quizDoc.output("blob"),
-        answerBlob: answerSheet.output("blob"),
+        answerBlob,
       };
     } catch (error) {
       toast.error("Error generating PDFs");
@@ -843,7 +605,6 @@ const CreateQuizPage: React.FC = () => {
   //     });
   //   }
   // };
-
 
   const handleConfirmSubmit = async () => {
     const token = localStorage.getItem("token");
@@ -913,8 +674,6 @@ const CreateQuizPage: React.FC = () => {
     }
   };
 
-  
-  
   const handleSubmitQuiz = async () => {
     try {
       // Validation du schéma
@@ -945,21 +704,22 @@ const CreateQuizPage: React.FC = () => {
     try {
       setIsLoading(true);
 
-      // 1. Génération des PDFs
+      // Générer le quiz PDF
       const { quizBlob, answerBlob } = await generatePDFs();
 
-      // 2. Création du ZIP
+      // Création du ZIP
       const zip = new JSZip();
       zip.file(`${title}_Quiz.pdf`, quizBlob);
       zip.file(`${title}_Answers.pdf`, answerBlob);
-      const content = await zip.generateAsync({ type: "blob" });
 
-      // 3. Téléchargement
+      // Téléchargement
+      const content = await zip.generateAsync({ type: "blob" });
       const link = document.createElement("a");
       link.href = URL.createObjectURL(content);
       link.download = `${title}_Quiz.zip`;
       link.click();
 
+      // Reset form
       setTitle("");
       setQuestions([]);
       setIsSaved(false);
@@ -970,6 +730,7 @@ const CreateQuizPage: React.FC = () => {
       setIsLoading(false);
     }
   };
+
   return (
     <ClientLayout>
       <PreviewContext.Provider value={{ generatePDFs }}>

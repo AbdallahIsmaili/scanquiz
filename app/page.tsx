@@ -5,10 +5,11 @@ import { toast, Toaster } from "react-hot-toast";
 import { isAuthenticated } from "./(auth)/api/check-auth"; // Ensure the path is correct
 import { Button } from "@/components/ui/button";
 import DynamicIslandNavbar from "@/components/dynamicIslandNavbar";
-import Link from "next/link";
+import { useRouter } from "next/navigation"; // Ajout de l'import router
 
 const HomePage = () => {
   const [user, setUser] = useState(null);
+  const router = useRouter();
 
   useEffect(() => {
     const authUser = isAuthenticated();
@@ -47,6 +48,21 @@ const HomePage = () => {
     }
   }, []);
 
+  const handleCreateClick = () => {
+    if (user) {
+      router.push("/pages");
+    } else {
+      toast.error("Please login first to create your MCQ Quiz!", {
+        style: {
+          borderRadius: "10px",
+          background: "#333",
+          color: "#fff",
+        },
+      });
+      router.push("/login"); // Redirection vers la page de login
+    }
+  };
+
   return (
     <div className="relative min-h-screen text-white flex flex-col items-center justify-center ">
       <Toaster position="top-right" reverseOrder={false} />
@@ -71,8 +87,11 @@ const HomePage = () => {
         </p>
 
         {/* Call-to-Action Button */}
-        <Button className="animate-pulseClick mt-10 px-8 py-6 bg-purple-600 hover:bg-purple-700 text-lg font-semibold rounded-md shadow-lg transition [text-shadow:_0_1px_2px_rgb(255_255_255_/_40%)]">
-          <Link href="/pages">Create Your MCQ Quiz Now!</Link>
+        <Button 
+          className="animate-pulseClick mt-10 px-8 py-6 bg-purple-600 hover:bg-purple-700 text-lg font-semibold rounded-md shadow-lg transition [text-shadow:_0_1px_2px_rgb(255_255_255_/_40%)]"
+          onClick={handleCreateClick}
+        >
+          Create Your MCQ Quiz Now!
         </Button>
 
         {/* Subtext with White Shadow */}

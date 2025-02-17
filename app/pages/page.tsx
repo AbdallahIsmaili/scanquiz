@@ -683,7 +683,53 @@ const CreateQuizPage: React.FC = () => {
     try {
       setIsLoading(true);
 
-      const { quizBlob, answerBlob } = await generatePDFs();
+      const omrResponse = await fetch("/api/generate-omr", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, questions }),
+      });
+
+      if (!omrResponse.ok) {
+        throw new Error("Failed to generate OMR sheet");
+      }
+
+      const { exam_id, omrSheetUrl } = await omrResponse.json();
+      console.log("Generated Exam ID:", exam_id);
+
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("Authorization token not found. Please log in again.");
+      }
+
+      const formattedQuestions = questions.map((q) => ({
+        question_text: q.text,
+        question_type: q.type,
+        box_size: q.type === "typing-box" ? q.boxSize : null,
+        choices: q.choices
+          ? q.choices.map((c) => ({
+              choice_text: c.text,
+              is_correct: c.isCorrect,
+            }))
+          : [],
+      }));
+
+      const saveQuizResponse = await fetch("http://localhost:3001/save-quiz", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ title, questions: formattedQuestions, exam_id }),
+      });
+
+      if (!saveQuizResponse.ok) {
+        const errorMessage = await saveQuizResponse.text();
+        throw new Error(`Failed to save quiz: ${errorMessage}`);
+      }
+
+      console.log("Quiz saved successfully with exam_id:", exam_id);
+
+      const { quizBlob, answerBlob } = await generatePDFs(exam_id); 
 
       const zip = new JSZip();
       zip.file(`${title}_Quiz.pdf`, quizBlob);
@@ -695,16 +741,21 @@ const CreateQuizPage: React.FC = () => {
       link.download = `${title}_Quiz.zip`;
       link.click();
 
+      window.open(omrSheetUrl, "_blank");
+
       setTitle("");
       setQuestions([]);
       setIsSaved(false);
+
+      toast.success("Quiz published successfully!");
     } catch (error) {
       console.error("Publishing failed:", error);
-      toast.error(`Publication failed: ${error}`);
+      toast.error(`Publication failed: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
-  };
+  }
+
 
   return (
     <ClientLayout>

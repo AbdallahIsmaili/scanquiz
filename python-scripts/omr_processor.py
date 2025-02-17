@@ -9,10 +9,8 @@ import json
 import shutil
 from pdf2image import convert_from_path
 
-# Define dimensions
-width, height = 2100, 2970  # A4 size at 300 dpi
+width, height = 2100, 2970  
 
-# Define parameters
 num_questions = 30
 options_per_question = 4
 bubble_radius = 20
@@ -23,14 +21,12 @@ top_margin = 800
 column_spacing = 1000
 box_width, box_height = 400, 70
 
-# Define student information fields
 info_fields = {
     "Name": (width // 2 - 700, 500),
     "Class": (width // 2 - 200, 500),
     "CIN": (width // 2 + 400, 500),
 }
 
-# Define exam information fields
 exam_info_fields = {
     "exam_title": (width // 2 - 400, 100, width // 2 + 400, 160),
     "prof_name": (width // 2 - 400, 200, width // 2 + 400, 260),
@@ -38,7 +34,6 @@ exam_info_fields = {
     "exam_id": (width - left_margin - 500, 50, width - left_margin + 200, 100),
 }
 
-# Function to extract text from an image region using pytesseract
 def extract_text(roi):
     if roi is None or roi.size == 0:
         return ""
@@ -47,24 +42,20 @@ def extract_text(roi):
     text = pytesseract.image_to_string(binary, config="--psm 6")
     return text.strip()
 
-# Function to process a single OMR sheet
 def process_omr_sheet(omr_sheet):
     if omr_sheet is None or omr_sheet.size == 0:
         return {"error": "OMR sheet is empty or not properly loaded."}
 
     result = {"exam_info": {}, "student_info": {}, "checked_options": {}}
 
-    # Extract exam information
     for field, (x1, y1, x2, y2) in exam_info_fields.items():
         roi = omr_sheet[y1:y2, x1:x2]
         result["exam_info"][field] = extract_text(roi)
 
-    # Extract student information
     for field, (x, y) in info_fields.items():
         roi = omr_sheet[y:y + box_height, x:x + box_width]
         result["student_info"][field] = extract_text(roi)
 
-    # Extract checked options
     for q in range(num_questions):
         if q < 25:
             x_offset = left_margin
@@ -88,7 +79,6 @@ def process_omr_sheet(omr_sheet):
 
     return result
 
-# Function to process OMR sheets from a ZIP or RAR file
 def process_omr_archive(archive_path):
     results = []
     temp_dir = "temp"
@@ -118,10 +108,9 @@ def process_omr_archive(archive_path):
             if omr_sheet is not None:
                 results.append(process_omr_sheet(omr_sheet))
 
-    shutil.rmtree(temp_dir)  # Clean up extracted files
+    shutil.rmtree(temp_dir)  
     return results
 
-# Function to process a single OMR sheet file
 def process_single_file(file_path):
     if file_path.lower().endswith(".pdf"):
         pages = convert_from_path(file_path)
@@ -130,7 +119,6 @@ def process_single_file(file_path):
         omr_sheet = cv2.imread(file_path)
         return [process_omr_sheet(omr_sheet)] if omr_sheet is not None else []
 
-# Main function to process files submitted from Next.js
 if __name__ == "__main__":
     file_paths = sys.argv[1:]
     results = []

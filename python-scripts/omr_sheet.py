@@ -24,7 +24,7 @@ else:
 current_year = datetime.datetime.now().year
 random_digits = random.randint(100, 999)  
 exam_id = (
-    (exam_title[-3:] if len(exam_title) >= 3 else exam_title)  # Last 3 letters
+    (exam_title[-3:] if len(exam_title) >= 3 else exam_title) 
     + str(current_year)[-2:]  
     + str(random_digits)  
     + exam_title[0]  
@@ -45,7 +45,7 @@ question_spacing = 80
 left_margin = 500
 top_margin = 800
 column_spacing = 1000
-options_per_question = 4  # Default options A, B, C, D
+options_per_question = 4  
 font_path = "python-scripts/Times New Roman/times new roman bold.ttf"
 
 
@@ -101,7 +101,7 @@ print(f"Image saved: {image_path}")
 if os.path.exists(image_path):
     pdf = FPDF()
     pdf.add_page()
-    pdf.image(image_path, 0, 0, 210, 297)  # A4 dimensions in mm
+    pdf.image(image_path, 0, 0, 210, 297)  
     pdf.output(pdf_path)
     print(f"PDF saved: {pdf_path}")
 else:

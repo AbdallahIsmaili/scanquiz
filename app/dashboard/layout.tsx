@@ -30,11 +30,10 @@ interface LayoutProps {
 const Layout: FC<LayoutProps> = ({ children }) => {
   const pathname = usePathname();
 
-  // Determine the breadcrumb text based on the pathname
   const breadcrumbText = () => {
     if (pathname === "/dashboard/correction") return "Exam Correction";
     if (pathname === "/dashboard/settings") return "General Settings";
-    return "Exam Management"; // Default
+    return "Exam Management"; 
   };
   return (
     <SidebarProvider>

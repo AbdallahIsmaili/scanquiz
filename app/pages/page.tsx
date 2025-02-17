@@ -58,7 +58,7 @@ const QuizSchema = z.object({
               isCorrect: z.boolean(),
             })
           )
-          .length(4, "Exactly 4 choices required") // ← Modification ici
+          .length(4, "Exactly 4 choices required") 
           .refine(
             (choices) => choices.some((c) => c.isCorrect),
             "At least one correct answer required"
@@ -76,7 +76,6 @@ type PreviewContextType = {
   generatePDFs: () => Promise<{ quizBlob: Blob; answerBlob: Blob }>;
 };
 
-//const PreviewContext = createContext<PreviewContextType | null>(null);
 
 const PreviewContext = createContext<PreviewContextType>({
   generatePDFs: async () => {
@@ -195,7 +194,6 @@ const QuizForm = ({ title, questions, setTitle, setQuestions }) => {
           onChange={(e) => setTitle(e.target.value)}
         />
 
-        {/* Boucle sur les questions */}
         {questions.map((question, index) => (
           <div key={index} className="space-y-4 border p-4 rounded-lg">
             <div className="flex justify-between items-center">
@@ -288,7 +286,6 @@ const QuizPreview = ({
         const { omrSheetUrl } = await response.json();
         toast.success("OMR sheet generated successfully!", { id: "omr-gen" });
 
-        // Open PDF in a new tab
         window.open(omrSheetUrl, "_blank");
       } else {
         toast.error("Error generating OMR sheet", { id: "omr-gen" });
@@ -339,9 +336,6 @@ const QuizPreview = ({
             Save
           </Button>
 
-          {/*<Button className="w-full" onClick={generateAnswerSheet}>
-            Generate Answer Sheet
-          </Button>*/}
 
           <Button
             className="w-full"
@@ -405,9 +399,8 @@ const CreateQuizPage: React.FC = () => {
 
     window.addEventListener("beforeunload", handleBeforeUnload);
 
-    // Cleanup: supprime l'écouteur quand le composant est démonté
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [questions, title]); // Déclenche une mise à jour quand ces variables changent
+  }, [questions, title]); 
 
   const generatePDFs = async () => {
     try {
@@ -421,12 +414,10 @@ const CreateQuizPage: React.FC = () => {
         quizDoc.setFontSize(16);
       }
       const zip = new JSZip();
-      // En-tête du Quiz
       quizDoc.setFontSize(16);
       quizDoc.setFont("helvetica", "bold");
       quizDoc.text(title, 105, 20, { align: "center" });
 
-      // Section Informations Étudiant
       quizDoc.setFontSize(11);
       quizDoc.setFont("helvetica", "bold");
       const studentFields = [
@@ -439,11 +430,9 @@ const CreateQuizPage: React.FC = () => {
       studentFields.forEach((field) => {
         quizDoc.text(field.label, field.x, field.y);
       });
-      // Ligne de séparation
       quizDoc.setLineWidth(0.5);
       quizDoc.line(15, 58, 195, 58);
 
-      // Configuration des questions
       let yOffset = 65;
       const pageWidth = 180;
       const margin = 20;
@@ -454,16 +443,13 @@ const CreateQuizPage: React.FC = () => {
           yOffset = 30;
         }
 
-        // Gestion du préfixe "Q1:"
         quizDoc.setFontSize(12);
         quizDoc.setFont("helvetica", "bold");
         const questionPrefix = `Q${index + 1}: `;
         const prefixWidth = quizDoc.getTextWidth(questionPrefix);
 
-        // Affichage du préfixe
         quizDoc.text(questionPrefix, margin, yOffset);
 
-        // Découpage et justification du texte
         const availableWidth = pageWidth - prefixWidth - 5;
         const questionLines = quizDoc.splitTextToSize(
           question.text,
@@ -481,7 +467,6 @@ const CreateQuizPage: React.FC = () => {
 
         yOffset += 3 * questionLines.length;
 
-        // Réponses
         if (question.type === "multiple-choice") {
           quizDoc.setFontSize(11);
           question.choices.forEach((choice: any, choiceIndex: number) => {
@@ -498,8 +483,7 @@ const CreateQuizPage: React.FC = () => {
             yOffset += 5 + choiceLines.length * 5;
           });
         } else if (question.type === "typing-box") {
-          //const boxSize = (question.boxSize) || 1;
-          const boxSize = parseInt(String(question.boxSize), 10) || 1; // Force la conversion en string
+          const boxSize = parseInt(String(question.boxSize), 10) || 1; 
           const lineYStart = yOffset + 4;
 
           for (let i = 0; i < boxSize; i++) {
@@ -517,14 +501,12 @@ const CreateQuizPage: React.FC = () => {
         yOffset += 15;
       });
 
-      // Footer
       const pageCount = quizDoc.getNumberOfPages();
       for (let i = 1; i <= pageCount; i++) {
         quizDoc.setPage(i);
         quizDoc.text(`Page ${i} / ${pageCount}`, 105, 285, { align: "center" });
       }
 
-      // Génération de la feuille de réponses via l'API
       const omrResponse = await fetch("/api/generate-omr", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -619,7 +601,6 @@ const CreateQuizPage: React.FC = () => {
     });
 
     try {
-      // Step 1: Generate OMR Sheet and get exam_id
       const omrResponse = await fetch("/api/generate-omr", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -659,7 +640,6 @@ const CreateQuizPage: React.FC = () => {
       if (response.ok) {
         toast.success("Quiz saved successfully!", { id: "save-quiz" });
 
-        // Open OMR sheet after successful save
         window.open(omrSheetUrl, "_blank");
       } else {
         const errorMessage = await response.text();
@@ -676,7 +656,6 @@ const CreateQuizPage: React.FC = () => {
 
   const handleSubmitQuiz = async () => {
     try {
-      // Validation du schéma
       QuizSchema.parse({ title, questions });
       await handleConfirmSubmit();
       setIsSaved(true);
@@ -704,22 +683,18 @@ const CreateQuizPage: React.FC = () => {
     try {
       setIsLoading(true);
 
-      // Générer le quiz PDF
       const { quizBlob, answerBlob } = await generatePDFs();
 
-      // Création du ZIP
       const zip = new JSZip();
       zip.file(`${title}_Quiz.pdf`, quizBlob);
       zip.file(`${title}_Answers.pdf`, answerBlob);
 
-      // Téléchargement
       const content = await zip.generateAsync({ type: "blob" });
       const link = document.createElement("a");
       link.href = URL.createObjectURL(content);
       link.download = `${title}_Quiz.zip`;
       link.click();
 
-      // Reset form
       setTitle("");
       setQuestions([]);
       setIsSaved(false);

@@ -1,10 +1,8 @@
-import {jwtDecode} from "jwt-decode"; // Ensure proper import
-import { setLogoutTimeout } from "./auth"; // Import the new function
+import {jwtDecode} from "jwt-decode"; 
+import { setLogoutTimeout } from "./auth"; 
 
 export const logout = () => {
-  // Remove the token from local storage
   localStorage.removeItem("token");
-  // Redirect to the login page
   window.location.href = "/";
 };
 
@@ -13,12 +11,11 @@ export const isAuthenticated = () => {
   if (!token) return null;
 
   try {
-    const decoded: any = jwtDecode(token); // Specify 'any' type for flexibility
+    const decoded: any = jwtDecode(token); 
 
-    // Check if token expiration exists and if the token is expired
     const currentTime = Date.now() / 1000;
     if (!decoded.exp || decoded.exp < currentTime) {
-      logout(); // Log out if the token is expired
+      logout(); 
       return null;
     }
 
@@ -29,9 +26,7 @@ export const isAuthenticated = () => {
   }
 };
 
-// Call setLogoutTimeout after login or registration
 export const loginUser = (token: string) => {
-  // Properly type the token parameter
   localStorage.setItem("token", token);
-  setLogoutTimeout(); // Set the timeout for automatic logout
+  setLogoutTimeout(); 
 };

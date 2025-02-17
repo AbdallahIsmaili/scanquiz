@@ -1,14 +1,12 @@
 import axios from "axios";
-import {jwtDecode} from "jwt-decode"; // Ensure proper import
+import {jwtDecode} from "jwt-decode"; 
 
 const userApi = axios.create({
   baseURL: "http://localhost:3001",
 });
 
 export const logout = () => {
-  // Remove the token from local storage
   localStorage.removeItem("token");
-  // Redirect to the login page
   window.location.href = "/";
 };
 
@@ -17,11 +15,11 @@ export const setLogoutTimeout = () => {
   if (!token) return;
 
   try {
-    const decoded: any = jwtDecode(token); // Specify 'any' type for flexibility
+    const decoded: any = jwtDecode(token); 
     if (!decoded.exp) {
       throw new Error("Token expiration is undefined");
     }
-    const expirationTime = decoded.exp * 1000; // Convert to milliseconds
+    const expirationTime = decoded.exp * 1000;
     const currentTime = Date.now();
 
     const timeLeft = expirationTime - currentTime;

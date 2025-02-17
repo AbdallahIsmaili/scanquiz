@@ -12,13 +12,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "No files uploaded" }, { status: 400 });
   }
 
-  // Create a temporary directory
   const tempDir = path.join(os.tmpdir(), "uploads");
   if (!fs.existsSync(tempDir)) {
     fs.mkdirSync(tempDir, { recursive: true });
   }
 
-  // Save files to the temp directory
   const filePaths: string[] = [];
   for (const file of files) {
     const filePath = path.join(tempDir, file.name);
@@ -27,7 +25,6 @@ export async function POST(req: Request) {
     filePaths.push(filePath);
   }
 
-  // Run Python script with the file path as an argument
   const scriptPath = path.join(
     process.cwd(),
     "python-scripts",

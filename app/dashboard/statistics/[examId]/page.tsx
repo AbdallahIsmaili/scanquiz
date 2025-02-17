@@ -49,11 +49,11 @@ interface ExamData {
 }
 
 export default function ExamStatisticsPage() {
-  const { examId } = useParams(); // Get examId from the URL
+  const { examId } = useParams(); 
   const [examData, setExamData] = useState<ExamData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [maxScore, setMaxScore] = useState(20); // Default max score
+  const [maxScore, setMaxScore] = useState(20); 
 
   // Fetch exam data
   useEffect(() => {
@@ -89,10 +89,8 @@ export default function ExamStatisticsPage() {
     return <div>No data found for this exam.</div>;
   }
 
-  // Calculate statistics
   const totalStudents = examData.students.length;
 
-  // Top 5 Students by Score
   const topStudents = examData.students
     .sort((a, b) => b.score - a.score)
     .slice(0, 5)
@@ -101,7 +99,6 @@ export default function ExamStatisticsPage() {
       score: student.score,
     }));
 
-  // Score Distribution by Class
   const scoreByClass = examData.students.reduce((acc, student) => {
     const className = student.student_info?.Class || "Unknown";
     if (!acc[className]) {
@@ -119,7 +116,6 @@ export default function ExamStatisticsPage() {
     ).toFixed(2),
   }));
 
-  // Pass/Fail Distribution
   const passFailData = [
     {
       name: "Pass",
@@ -134,14 +130,12 @@ export default function ExamStatisticsPage() {
     },
   ];
 
-  const COLORS = ["#10b981", "#ef4444"]; // Green for Pass, Red for Fail
+  const COLORS = ["#10b981", "#ef4444"]; 
 
-  // Score Distribution Histogram
   const scoreDistribution = examData.students.map((student) => ({
     score: student.score,
   }));
 
-  // Most Difficult Questions
   const questionDifficulty =
     examData.students[0]?.answers?.map((answer, index) => {
       const correct = examData.students.filter(
@@ -154,15 +148,14 @@ export default function ExamStatisticsPage() {
         question: `Q${index + 1}`,
         correct,
         incorrect,
-        difficulty: (incorrect / (correct + incorrect)) * 100, // Difficulty percentage
+        difficulty: (incorrect / (correct + incorrect)) * 100, 
       };
     }) || [];
 
   const mostDifficultQuestions = questionDifficulty
     .sort((a, b) => b.difficulty - a.difficulty)
-    .slice(0, 5); // Top 5 most difficult questions
+    .slice(0, 5); 
 
-  // Total Correct vs. Incorrect Answers
   const totalCorrect = examData.students.reduce(
     (sum, student) =>
       sum + (student.answers?.filter((answer) => answer.isCorrect).length || 0),
@@ -191,7 +184,6 @@ export default function ExamStatisticsPage() {
           </Button>
         </Link>
 
-        {/* Max Score Input */}
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700">
             Max Score
@@ -205,7 +197,6 @@ export default function ExamStatisticsPage() {
           />
         </div>
 
-        {/* Exam Title and ID */}
         <Card className="mb-6">
           <CardHeader>
             <CardTitle className="text-2xl font-bold">
@@ -217,7 +208,6 @@ export default function ExamStatisticsPage() {
           </CardHeader>
         </Card>
 
-        {/* Key Statistics */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <Card>
             <CardHeader>
@@ -245,7 +235,6 @@ export default function ExamStatisticsPage() {
           </Card>
         </div>
 
-        {/* Top 5 Students by Score */}
         <Card className="mb-6">
           <CardHeader>
             <CardTitle className="text-lg">Top 5 Students by Score</CardTitle>
@@ -263,7 +252,6 @@ export default function ExamStatisticsPage() {
           </CardContent>
         </Card>
 
-        {/* Score Distribution by Class */}
         <Card className="mb-6">
           <CardHeader>
             <CardTitle className="text-lg">Average Score by Class</CardTitle>
@@ -281,7 +269,6 @@ export default function ExamStatisticsPage() {
           </CardContent>
         </Card>
 
-        {/* Pass/Fail Distribution */}
         <Card className="mb-6">
           <CardHeader>
             <CardTitle className="text-lg">Pass/Fail Distribution</CardTitle>
@@ -313,7 +300,6 @@ export default function ExamStatisticsPage() {
           </CardContent>
         </Card>
 
-        {/* Score Distribution Histogram */}
         <Card className="mb-6">
           <CardHeader>
             <CardTitle className="text-lg">Score Distribution</CardTitle>
@@ -331,7 +317,6 @@ export default function ExamStatisticsPage() {
           </CardContent>
         </Card>
 
-        {/* Most Difficult Questions */}
         <Card className="mb-6">
           <CardHeader>
             <CardTitle className="text-lg">Most Difficult Questions</CardTitle>
@@ -349,7 +334,6 @@ export default function ExamStatisticsPage() {
           </CardContent>
         </Card>
 
-        {/* Total Correct vs. Incorrect Answers */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">

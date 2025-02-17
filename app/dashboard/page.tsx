@@ -97,8 +97,7 @@ const DashboardPage: FC = () => {
   const [quizTitle, setQuizTitle] = useState("");
   const [newQuestion, setNewQuestion] = useState("");
 
-  // Explicitly type the states
-  const [sorting, setSorting] = useState<SortingState>([]); // Fix here
+  const [sorting, setSorting] = useState<SortingState>([]); 
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
@@ -131,17 +130,14 @@ const DashboardPage: FC = () => {
     fetchQuizzes();
   }, []);
 
-  // Fetch quiz questions when a quiz is selected
   useEffect(() => {
     if (selectedQuiz) {
       const url = `http://localhost:3001/api/quizzes/${selectedQuiz}/questions`;
       fetchQuizData(url, setQuestions, setError);
     }
-  }, [selectedQuiz]); // Removed questionText from dependencies
-
+  }, [selectedQuiz]);
   
 
-  // Fetch quiz details when updating
   useEffect(() => {
     if (isUpdateQuizOpen && selectedQuiz) {
       const url = `http://localhost:3001/api/quizzes/${selectedQuiz}`;
@@ -149,7 +145,7 @@ const DashboardPage: FC = () => {
     }
   }, [isUpdateQuizOpen, selectedQuiz]);
 
-  // Fetch helper function
+
   const fetchQuizData = async (
     url: string,
     setData: (data: any) => void,
@@ -168,7 +164,6 @@ const DashboardPage: FC = () => {
     }
   };
 
-  // Handle quiz selection change
   const handleSelectChange = (value: string) => {
     setSelectedQuiz(value);
   };
@@ -179,12 +174,11 @@ const DashboardPage: FC = () => {
   };
 
   const handleDeleteQuiz = () => {
-    // Flag to prevent multiple calls
     let isDeleting = false;
 
-    if (isDeleting) return; // Prevent multiple calls
+    if (isDeleting) return; 
 
-    isDeleting = true; // Set flag to true
+    isDeleting = true; 
 
     toast.promise(
       fetch(`http://localhost:3001/api/quizzes/${selectedQuiz}`, {
@@ -203,12 +197,12 @@ const DashboardPage: FC = () => {
           setQuizzes((prevQuizzes) =>
             prevQuizzes.filter((q) => q.id !== Number(selectedQuiz))
           );
-          setIsDeleteQuizOpen(false); // Hide the delete confirmation modal
-          isDeleting = false; // Reset the flag
-          window.location.reload(); // Refresh the page
+          setIsDeleteQuizOpen(false); 
+          isDeleting = false;
+          window.location.reload(); 
         })
         .catch((err) => {
-          isDeleting = false; // Reset the flag in case of error
+          isDeleting = false; 
           console.error("Error deleting quiz:", err);
           throw err;
         }),
@@ -246,7 +240,7 @@ const DashboardPage: FC = () => {
         );
         setIsUpdateQuizOpen(false);
         window.location.reload();
-        toast.success("Quiz updated successfully!"); // Show success toast here
+        toast.success("Quiz updated successfully!"); 
       })
       .catch((err) => {
         if (
@@ -329,9 +323,9 @@ const DashboardPage: FC = () => {
         const handleDelete = () => {
           let isDeleting = false;
 
-          if (isDeleting) return; // Prevent multiple calls
+          if (isDeleting) return; 
 
-          isDeleting = true; // Set flag to true
+          isDeleting = true; 
 
           toast.promise(
             fetch(`http://localhost:3001/api/questions/${question.id}`, {
@@ -350,10 +344,10 @@ const DashboardPage: FC = () => {
                 setQuestions((prevQuestions) =>
                   prevQuestions.filter((q) => q.id !== question.id)
                 );
-                setIsDeleteOpen(false); // Hide the delete confirmation modal
+                setIsDeleteOpen(false); 
               })
               .finally(() => {
-                isDeleting = false; // Reset the flag
+                isDeleting = false; 
               })
               .catch((err) => {
                 console.error("Error deleting question:", err);
@@ -373,7 +367,6 @@ const DashboardPage: FC = () => {
             return;
           }
 
-          // Check if there's a duplicate question text in the same quiz
           const duplicateQuestion = questions.find(
             (q) =>
               q.question_text === questionDetails.question_text &&
@@ -387,7 +380,6 @@ const DashboardPage: FC = () => {
             return;
           }
 
-          // Check for duplicate answers within the same question
           const duplicateAnswer = questionDetails.choices.some(
             (choice, index, array) =>
               array.findIndex((c) => c.choice_text === choice.choice_text) !==
@@ -451,8 +443,8 @@ const DashboardPage: FC = () => {
                 question_type: value,
                 savedChoices:
                   (prev as Question & { savedChoices?: Choice[] }).choices ||
-                  [], // Store choices safely
-                choices: [], // Clear choices
+                  [], 
+                choices: [],
               };
             } else if (value === "multiple-choice") {
               return {
@@ -460,8 +452,8 @@ const DashboardPage: FC = () => {
                 question_type: value,
                 choices:
                   (prev as Question & { savedChoices?: Choice[] })
-                    .savedChoices || [], // Restore saved choices
-                savedChoices: [], // Clear temporary storage
+                    .savedChoices || [], 
+                savedChoices: [], 
               };
             }
 
@@ -656,8 +648,8 @@ const DashboardPage: FC = () => {
                                         choices: [
                                           ...prev.choices,
                                           {
-                                            id: Date.now(), // Use a unique id (e.g., timestamp)
-                                            question_id: prev.id, // Assuming you have `id` in the `prev` state
+                                            id: Date.now(), 
+                                            question_id: prev.id, 
                                             choice_text: "",
                                             is_correct: false,
                                           },
@@ -828,15 +820,7 @@ const DashboardPage: FC = () => {
       </div>
 
       <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-        <div className="grid auto-rows-min gap-4 md:grid-cols-3">
-          <div className="aspect-video rounded-xl bg-muted/50">
-            QCM Exam Overview
-          </div>
-          <div className="aspect-video rounded-xl bg-muted/50">
-            Exam Results
-          </div>
-          <div className="aspect-video rounded-xl bg-muted/50">Scan Exams</div>
-        </div>
+        
 
         <div className="min-h-[100vh] flex-1 rounded-xl bg-muted/50 md:min-h-min p-4">
           <div className="w-full">

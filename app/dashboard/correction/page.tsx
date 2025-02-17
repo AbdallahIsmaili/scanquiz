@@ -43,7 +43,6 @@ export default function Home() {
   const [error, setError] = useState(0);
   const router = useRouter();
 
-  // Function to update scores based on maxScore change
   const updateScoresWithMaxScore = () => {
     if (!results || !results.gradedResults) return;
 
@@ -65,7 +64,6 @@ export default function Home() {
     }));
   };
 
-  // Recalculate scores when maxScore changes
   useEffect(() => {
     updateScoresWithMaxScore();
   }, [maxScore]);
@@ -96,17 +94,14 @@ export default function Home() {
 
 
   axios.interceptors.response.use(
-    (response) => response, // Success case: pass through
+    (response) => response, 
     (error) => {
-      // Handle the error silently
       if (error.response?.status === 404) {
-        // You can optionally log the error internally (e.g., for debugging)
         console.log("Exam not found (404). Error handled silently.");
       } else {
-        // Log other errors (optional)
         console.error("Axios error:", error);
       }
-      return Promise.reject(error); // Reject the promise to propagate the error
+      return Promise.reject(error);
     }
   );
 
@@ -140,17 +135,14 @@ export default function Home() {
   };
 
   const handleUpload = async () => {
-    // Check if files are selected
     if (!files || files.length === 0) {
       toast.error("Please select files to upload.");
       return;
     }
 
-    // Set loading state and show loading toast
     setLoading(true);
     toast.loading("Uploading files...");
 
-    // Prepare form data for the upload
     const formData = new FormData();
     for (let i = 0; i < files.length; i++) {
       formData.append("files", files[i]);
@@ -273,7 +265,7 @@ export default function Home() {
   };
 
   axios.interceptors.response.use(
-    (response) => response, // Success case: pass through
+    (response) => response, 
     (error) => {
       if (error.response?.status === 404) {
         console.log("Exam not found (404). Error handled silently.");
@@ -338,18 +330,16 @@ export default function Home() {
     const examInfo = results.examData.exam_info;
     const worksheetData = [];
 
-    // Add Exam Title & ID only once at the top
     worksheetData.push(["Exam Title:", examInfo?.title || "N/A"]);
     worksheetData.push(["Exam ID:", examInfo?.exam_id || "N/A"]);
-    worksheetData.push([]); // Empty row for spacing
+    worksheetData.push([]); 
 
-    // Filter out duplicate students based on CIN
     const uniqueStudents = results.gradedResults.filter(
       (student, index, self) => {
         const firstIndex = self.findIndex(
           (s) => s.student_info?.CIN === student.student_info?.CIN
         );
-        return index === firstIndex; // Keep only the first occurrence
+        return index === firstIndex; 
       }
     );
 
@@ -454,17 +444,15 @@ export default function Home() {
 
     const examInfo = results.examData.exam_info;
 
-    // Filter out duplicate students based on CIN
     const uniqueStudents = results.gradedResults.filter(
       (student, index, self) => {
         const firstIndex = self.findIndex(
           (s) => s.student_info?.CIN === student.student_info?.CIN
         );
-        return index === firstIndex; // Keep only the first occurrence
+        return index === firstIndex; 
       }
     );
 
-    // Table headers
     const worksheetData = [
       ["Exam Title", "Exam ID", "Student Name", "CIN", "Class", "Score"],
     ];
@@ -549,13 +537,11 @@ export default function Home() {
 
   const handleViewStatistics = async () => {
     try {
-      // Save results to the database
       const examId = await handleSaveResults();
       if (!examId) {
         throw new Error("Failed to get exam ID.");
       }
 
-      // Redirect to the statistics page with examId
       router.push(`/dashboard/statistics/${examId}`);
     } catch (error) {
       console.error("Error saving results or redirecting:", error);
@@ -676,7 +662,6 @@ const handleExportToPDF = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-8">
-          {/* File Upload Section */}
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
               <Label
@@ -702,7 +687,6 @@ const handleExportToPDF = () => {
               </Button>
             </div>
 
-            {/* Max Score Input */}
             <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
               <Label
                 htmlFor="max-score"
@@ -721,7 +705,6 @@ const handleExportToPDF = () => {
             </div>
           </div>
 
-          {/* Exam Information */}
           {results?.examData && (
             <div className="mt-8 bg-blue-50 p-6 rounded-lg border border-blue-200">
               <TypographyH2 className="text-blue-800">
@@ -740,7 +723,6 @@ const handleExportToPDF = () => {
             </div>
           )}
 
-          {/* Student Results */}
           {results?.gradedResults && (
             <div className="mt-8 bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
               <TypographyH2 className="text-gray-800">
@@ -879,7 +861,6 @@ const handleExportToPDF = () => {
             </div>
           )}
 
-          {/* New Card for Exam Title, Exam ID, and Statistics Link */}
           {results?.examData && (
             <div className="mt-8 bg-gradient-to-r from-blue-500 to-blue-600 p-6 rounded-lg shadow-lg text-white">
               <div className="flex justify-between items-center">
@@ -892,7 +873,7 @@ const handleExportToPDF = () => {
                   </p>
                 </div>
                 <Button
-                  onClick={handleViewStatistics} // Use the new handler
+                  onClick={handleViewStatistics}
                   className="flex items-center bg-white text-blue-600 hover:bg-blue-50 font-semibold py-2 px-4 rounded-lg transition-all"
                 >
                   <span>View Statistics</span>
@@ -902,10 +883,8 @@ const handleExportToPDF = () => {
             </div>
           )}
 
-          {/* Buttons for Save and Export */}
           {results?.gradedResults && results.gradedResults.length > 0 && (
             <div className="flex space-x-4 mt-6">
-              {/* Save Results Button */}
               <Button
                 onClick={handleSaveResults}
                 className="bg-green-600 text-white"
@@ -914,7 +893,6 @@ const handleExportToPDF = () => {
                 Save Results
               </Button>
 
-              {/* Export Dropdown Menu */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" className="bg-blue-600 text-white">

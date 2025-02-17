@@ -1,4 +1,4 @@
-// pages/quizzes/[id].tsx
+
 
 import { GetStaticPaths, GetStaticProps } from "next";
 import { useRouter } from "next/router";
@@ -8,7 +8,7 @@ import { TypographyH1, TypographyP } from "@/components/Typography";
 import { Button } from "@/components/ui/button";
 
 interface QuizProps {
-  quizData: any; // Define the shape of quiz data according to your application's needs
+  quizData: any;
 }
 
 const QuizPage: React.FC<QuizProps> = ({ quizData }) => {
@@ -27,7 +27,6 @@ const QuizPage: React.FC<QuizProps> = ({ quizData }) => {
         </CardHeader>
         <CardContent>
           <TypographyP>{quizData.description}</TypographyP>
-          {/* Render quiz questions and options here */}
           <Button className="mt-4" onClick={() => router.push("/quizzes")}>
             Back to Quizzes
           </Button>
@@ -38,7 +37,6 @@ const QuizPage: React.FC<QuizProps> = ({ quizData }) => {
 };
 
 export const getStaticPaths: GetStaticPaths = async () => {
-  // Fetch quiz IDs from your data source
   const quizIds = ["1", "2", "3"];
   const paths = quizIds.map((id) => ({
     params: { id },
@@ -49,7 +47,6 @@ export const getStaticPaths: GetStaticPaths = async () => {
 
 export const getStaticProps: GetStaticProps = async (context) => {
   const { id } = context.params!;
-  // Fetch quiz data based on the id
   const quizData = { id, description: `Description for quiz ${id}` };
 
   return {

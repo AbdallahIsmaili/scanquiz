@@ -344,7 +344,6 @@ export default function Home() {
     );
 
     uniqueStudents.forEach((student) => {
-      // Add Student Information
       worksheetData.push(["Student Name", "CIN", "Class", "Score"]);
       worksheetData.push([
         student.student_info?.Name || "N/A",
@@ -352,10 +351,9 @@ export default function Home() {
         student.student_info?.Class || "N/A",
         student.score,
       ]);
-      worksheetData.push([]); // Empty row
-      worksheetData.push([]); // Empty row
+      worksheetData.push([]); 
+      worksheetData.push([]); 
 
-      // Add Question Details
       worksheetData.push([
         "Question",
         "Chosen Options",
@@ -371,7 +369,7 @@ export default function Home() {
         ]);
       });
 
-      worksheetData.push([]); // Space before next student
+      worksheetData.push([]); 
     });
 
     // Create Excel Sheet

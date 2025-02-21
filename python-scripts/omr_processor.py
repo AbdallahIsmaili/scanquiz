@@ -9,8 +9,8 @@ import json
 import shutil
 from pdf2image import convert_from_path
 
-width, height = 2100, 2970  
-
+# Constants for OMR sheet dimensions and layout
+width, height = 2100, 2970
 num_questions = 30
 options_per_question = 4
 bubble_radius = 20
@@ -34,15 +34,57 @@ exam_info_fields = {
     "exam_id": (width - left_margin - 500, 50, width - left_margin + 200, 100),
 }
 
+def preprocess_image(img):
+    """Enhances an image for better OCR recognition."""
+    if img is None or img.size == 0:
+        return None
+    
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    # Apply Adaptive Thresholding to enhance text visibility
+    adaptive_thresh = cv2.adaptiveThreshold(
+        gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 10
+    )
+
+    # Apply Morphological Transformations to reduce noise
+    kernel = np.ones((2,2), np.uint8)
+    processed = cv2.morphologyEx(adaptive_thresh, cv2.MORPH_CLOSE, kernel)
+
+    # Resize to make OCR more accurate
+    processed = cv2.resize(processed, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
+
+    return processed
+
+def clean_text(text):
+    """Remove unwanted characters like |, ", and leading/trailing spaces."""
+    # Remove unwanted characters
+    unwanted_chars = ['|', '"', "'", "`", "\\", "/"]
+    for char in unwanted_chars:
+        text = text.replace(char, "")
+    
+    # Remove leading and trailing spaces
+    text = text.strip()
+    
+    return text
+
 def extract_text(roi):
+    """Extracts text from an ROI using Tesseract OCR with preprocessing."""
     if roi is None or roi.size == 0:
         return ""
-    gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
-    _, binary = cv2.threshold(gray, 128, 255, cv2.THRESH_BINARY_INV)
-    text = pytesseract.image_to_string(binary, config="--psm 6")
-    return text.strip()
+
+    preprocessed_roi = preprocess_image(roi)
+    
+    # Use Tesseract OCR with custom configuration to preserve spaces
+    custom_config = r"--psm 6 --oem 3"
+    text = pytesseract.image_to_string(preprocessed_roi, config=custom_config)
+    
+    # Clean the extracted text
+    cleaned_text = clean_text(text)
+    
+    return cleaned_text
 
 def process_omr_sheet(omr_sheet):
+    """Process an OMR sheet and extract student info, exam details, and answers."""
     if omr_sheet is None or omr_sheet.size == 0:
         return {"error": "OMR sheet is empty or not properly loaded."}
 
@@ -80,6 +122,7 @@ def process_omr_sheet(omr_sheet):
     return result
 
 def process_omr_archive(archive_path):
+    """Extract and process OMR sheets from ZIP or RAR archives."""
     results = []
     temp_dir = "temp"
     os.makedirs(temp_dir, exist_ok=True)
@@ -99,9 +142,12 @@ def process_omr_archive(archive_path):
 
     for image_file in image_files:
         if image_file.lower().endswith(".pdf"):
-            pages = convert_from_path(image_file)
+            # Convert PDF to images
+            pages = convert_from_path(image_file, dpi=300)  # Increase DPI for better quality
             for page in pages:
-                omr_sheet = np.array(page)
+                # Convert PIL image to OpenCV format
+                image = np.array(page.convert("RGB"))  # Ensure image is in RGB mode
+                omr_sheet = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)  # Convert to BGR for OpenCV
                 results.append(process_omr_sheet(omr_sheet))
         else:
             omr_sheet = cv2.imread(image_file)
@@ -113,8 +159,15 @@ def process_omr_archive(archive_path):
 
 def process_single_file(file_path):
     if file_path.lower().endswith(".pdf"):
-        pages = convert_from_path(file_path)
-        return [process_omr_sheet(np.array(page)) for page in pages]
+        # Convert PDF to images
+        pages = convert_from_path(file_path, dpi=300)  # Increase DPI for better quality
+        results = []
+        for page in pages:
+            # Convert PIL image to OpenCV format
+            image = np.array(page.convert("RGB"))  # Ensure image is in RGB mode
+            omr_sheet = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)  # Convert to BGR for OpenCV
+            results.append(process_omr_sheet(omr_sheet))
+        return results
     else:
         omr_sheet = cv2.imread(file_path)
         return [process_omr_sheet(omr_sheet)] if omr_sheet is not None else []
